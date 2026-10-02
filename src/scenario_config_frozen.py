@@ -15,9 +15,9 @@ Smurfing:
 Fan-Out:
     V2.2 selective operating point from DEVELOPMENT shortlist.
 
-Structuring and Fan-In remain on the existing V2 definitions until a dedicated
-freeze/evaluation step is completed. Keeping that explicit prevents silently
-presenting old V2 rules as newly tuned rules.
+Structuring and Fan-In:
+    Existing V2 definitions validated and frozen on DEVELOPMENT using
+    freeze_structuring_fanin.py. No HOLDOUT data was accessed.
 """
 
 FROZEN_SCENARIOS = {
@@ -80,12 +80,41 @@ FROZEN_SCENARIOS = {
         },
     },
     "structuring": {
-        "status": "legacy_v2_pending_freeze",
-        "source": "scenario_engine_v2.py",
+        "status": "frozen_development",
+        "window_days": 10,
+        "transaction_amount_ceiling": 10000.0,
+        "min_unique_senders": 5,
+        "aggregate_floor": 20000.0,
+        "cross_border_rate_threshold": 0.20,
+        "currency_mismatch_rate_threshold": 0.25,
+        "geo_fx_logic": "OR",
+        "development_metrics": {
+            "triggered_transactions": 28520,
+            "trigger_rate": 0.015014,
+            "precision": 0.007679,
+            "target_transactions": 335,
+            "target_hits": 171,
+            "target_recall": 0.510448,
+        },
     },
     "fan_in": {
-        "status": "legacy_v2_pending_freeze",
-        "source": "scenario_engine_v2.py",
+        "status": "frozen_development",
+        "window_days": 10,
+        "min_unique_senders": 5,
+        "max_unique_senders": 15,
+        "min_transactions": 5,
+        "max_transactions": 20,
+        "cross_border_rate_threshold": 0.10,
+        "currency_mismatch_rate_threshold": 0.20,
+        "geo_fx_logic": "OR",
+        "development_metrics": {
+            "triggered_transactions": 7607,
+            "trigger_rate": 0.004005,
+            "precision": 0.041541,
+            "target_transactions": 113,
+            "target_hits": 71,
+            "target_recall": 0.628319,
+        },
     },
 }
 
