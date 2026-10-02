@@ -5,3 +5,4 @@ xgboost
 matplotlib
 streamlit
 networkx
+pyspark>=3.5,<4
