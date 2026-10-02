@@ -11,10 +11,13 @@ def _edges(z):
              .agg(Amount=("Amount","first"),Payment_type=("Payment_type","first"),
                   sender_iso2=("sender_iso2","first"),receiver_iso2=("receiver_iso2","first"),
                   scenario=("scenario",lambda s:" | ".join(sorted(set(s.astype(str))))),
-                  ts=("ts","first"),cross_border=("cross_border","first")).reset_index())
+                  ts=("ts","first"),cross_border=("cross_border","first"),
+                  flow_type=("flow_type","first"),network_eligible=("network_eligible","first"),
+                  semantic_direction=("semantic_direction","first")).reset_index())
 
 def _network(edges,account):
     G=nx.DiGraph()
+    if "network_eligible" in edges.columns: edges=edges[edges.network_eligible.eq(1)]
     for _,x in edges.iterrows():
         u=str(x.Sender_account); v=str(x.Receiver_account)
         if G.has_edge(u,v): G[u][v]["count"]+=1
@@ -80,10 +83,12 @@ def render(d):
         m3.metric("Countries",len(set(edges.sender_iso2.dropna())|set(edges.receiver_iso2.dropna())))
         st.subheader("Alert timeline"); st.scatter_chart(ev,x="ts",y="holdout_row_id",color="scenario")
     with tabs[1]:
-        st.dataframe(edges.sort_values("ts"),width="stretch",hide_index=True)
+        show=edges.sort_values("ts").copy()
+        st.dataframe(show,width="stretch",hide_index=True)
+        st.caption("Cash Withdrawal and Cash Deposit preserve raw sender/receiver fields for audit, but are explicitly marked as cash flows and excluded from account-to-account network edges.")
     with tabs[2]:
         st.pyplot(_network(edges,r.account_id),width="stretch")
-        st.caption("Direction is Sender → Receiver. Arrowhead points to the receiver; thicker edge = repeated transfers. The graph includes investigation-context transactions, not only alerted transfers.")
+        st.caption("Account-transfer edges use Sender → Receiver. Cash withdrawals/deposits are excluded from account-to-account edges because their raw receiver/sender fields are not treated as economic counterparties.")
     with tabs[3]:
         fig,g=_world_map(edges)
         st.plotly_chart(fig,width="stretch")
