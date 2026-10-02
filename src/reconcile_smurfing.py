@@ -24,10 +24,10 @@ def main():
   d["fx"]=(d["Payment_currency"]!=d["Received_currency"]).astype("int8")
   return d
  tr=load(a.train,"train"); dev=load(a.development,"development")
- start=dev.ts.min(); warm=tr[tr.ts.ge(start-pd.Timedelta(days=120))]
+ start=dev.ts.min(); warm=tr[tr.ts.ge(start-pd.Timedelta(days=60))]
  h=pd.concat([warm,dev],ignore_index=True).sort_values("ts")
  h=h[h.Payment_type.eq("Cash Deposit")].copy()
- origin=h.ts.min().normalize()
+ origin=start
  h["window_id"]=np.floor((h.ts-origin).dt.total_seconds()/86400/45).astype("int32")
  g=h.groupby(["window_id","Sender_account"],observed=True).agg(
    tx_count=("Amount","size"),aggregate_amount=("Amount","sum"),median_amount=("Amount","median"),
@@ -36,6 +36,7 @@ def main():
  x=h.merge(g,on=["window_id","Sender_account"],how="left")
  base=x.tx_count.ge(3)&x.median_amount.lt(4000)&x.aggregate_amount.ge(10000)
  variants={
+  "frozen_anchor_base":base,
   "materializer_base":base,
   "plus_unique_receivers_le3":base&x.unique_receivers.le(3),
   "plus_geo_fx_le15":base&x.cross_border_rate.le(.15)&x.currency_mismatch_rate.le(.15),
