@@ -4,7 +4,7 @@ from dashboard import overview,queue,case_view,scenario_lab,lineage_view
 
 st.set_page_config(page_title="AML Investigation Console",page_icon="🔎",layout="wide")
 st.markdown("""<style>
-.stApp{background:#070b12;color:#e5e7eb}
+.stApp{background:#070b12;color:#f1f5f9}
 .block-container{padding-top:1.35rem;max-width:1500px}
 [data-testid="stSidebar"]{background:#0b1220;border-right:1px solid #1f2937}
 [data-testid="stMetric"]{background:#0f172a;border:1px solid #263244;padding:14px 16px;border-radius:12px}
