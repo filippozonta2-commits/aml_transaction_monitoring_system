@@ -49,7 +49,7 @@ def main():
 
     # DEVELOPMENT-wide absolute candidates.
     qvals=x.approxQuantile("Amount",[.95,.975],.001)
-    flags=x.select("development_row_id","Is_laundering")
+    flags=x.select("development_row_id","Is_laundering","Payment_type","Sender_bank_location","Receiver_bank_location","Payment_currency","Received_currency","Amount")
     for q,v in zip([.95,.975],qvals):
         flags=flags.withColumn(f"MISMATCH_Q{str(q).replace('.','_')}",
             (base & (F.col("Amount")>=F.lit(v))).cast("int"))
