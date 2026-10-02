@@ -53,8 +53,18 @@ def main():
     matched=int(rep.loc[rep.risk_match,"transactions"].sum())
     print(f"\nLocation values matched to country risk: {matched:,}/{total:,} ({matched/total:.2%})")
     miss=rep[(~rep.risk_match)&rep.country_iso2_key.notna()].sort_values("transactions",ascending=False)
+    unresolved=rep[rep.country_iso2_key.isna()].sort_values("transactions",ascending=False)
+    miss.to_csv(a.out/"country_risk_unmatched_normalized.csv",index=False)
+    unresolved.to_csv(a.out/"country_unresolved_raw_values.csv",index=False)
+
     print("\nTop unmatched normalized countries:")
     print(miss.head(20).to_string(index=False) if len(miss) else "None")
+    print("\n=== UNRESOLVED RAW LOCATION VALUES ===")
+    unresolved_n=int(unresolved.transactions.sum())
+    print(f"Unresolved location values: {unresolved_n:,}/{total:,} ({unresolved_n/total:.2%})")
+    print(unresolved.head(30).to_string(index=False) if len(unresolved) else "None")
+    if len(unresolved):
+        print("\nThese values could not be mapped to ISO-2. Review before assigning an UNKNOWN bucket.")
     print(f"\nSaved audit: {a.out}")
     print("Raw inputs were not modified. HOLDOUT was not accessed.")
 
