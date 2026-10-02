@@ -43,3 +43,7 @@ results/figures/*.jpg
 !results/figures/.gitkeep
 
 results/structuring_analysis/
+
+data/temporal/
+
+results/temporal_split/
