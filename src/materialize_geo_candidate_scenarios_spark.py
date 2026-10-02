@@ -16,7 +16,7 @@ def pick(cols,candidates):
 
 def main():
  p=argparse.ArgumentParser(); p.add_argument("--development",default="data/temporal/SAML-D_development.csv")
- p.add_argument("--country-risk",default="data/reference/country_risk.csv"); p.add_argument("--out",default="results/candidate_scenarios/geo_spark"); a=p.parse_args()
+ p.add_argument("--country-risk",default="data/country_risk.csv"); p.add_argument("--out",default="results/candidate_scenarios/geo_spark"); a=p.parse_args()
  spark=SparkSession.builder.appName("aml-geo-candidate-scenarios").config("spark.sql.shuffle.partitions","32").getOrCreate(); spark.sparkContext.setLogLevel("WARN")
  x=(spark.read.option("header",True).option("inferSchema",True).csv(a.development)
     .withColumn("development_row_id",F.monotonically_increasing_id()))
