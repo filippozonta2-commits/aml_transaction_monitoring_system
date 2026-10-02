@@ -69,7 +69,8 @@ def main():
  if not np.array_equal(c.development_row_id.to_numpy(),g.development_row_id.to_numpy()):
   raise ValueError("candidate/geography row ids do not align")
  for x in ["SCN_HIGH_RISK_GEOGRAPHY","SCN_SANCTIONED_GEOGRAPHY"]: c[x]=g[x].to_numpy()
- c["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4"]=mismatch_z4_flags(dev)\n c["SCN_UNUSUAL_AMOUNT_Z4"]=unusual_z4_flags(dev)
+ c["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4"]=mismatch_z4_flags(dev)
+ c["SCN_UNUSUAL_AMOUNT_Z4"]=unusual_z4_flags(dev)
 
  frozen=["SCN_STRUCTURING","SCN_DEPOSIT_SEND","SCN_FAN_OUT","SCN_FAN_IN","SCN_CASH_WITHDRAWAL","SCN_SMURFING"]
  add=["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4","SCN_UNUSUAL_AMOUNT_Z4",
