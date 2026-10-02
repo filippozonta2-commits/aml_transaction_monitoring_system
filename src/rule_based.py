@@ -28,6 +28,10 @@ class ScenarioConfig:
     structuring_amount_ceiling: float = 10_000.0
     structuring_prior_count: int = 5
     fan_activity_prior_count: int = 8
+    fan_out_unique_receivers: int = 5
+    fan_in_unique_senders: int = 5
+    rolling_min_tx_count: int = 5
+    rolling_aggregate_amount: float = 20_000.0
 
     # Alert aggregation
     scenario_alert_threshold: int = 1
@@ -43,6 +47,9 @@ SCENARIO_WEIGHTS: Dict[str, int] = {
     "SCN_UNUSUAL_AMOUNT": 50,
     "SCN_STRUCTURING_PROXY": 50,
     "SCN_FAN_ACTIVITY_PROXY": 35,
+    "SCN_STRUCTURING_ROLLING": 60,
+    "SCN_FAN_OUT": 60,
+    "SCN_FAN_IN": 60,
 }
 
 
@@ -56,6 +63,9 @@ SCENARIO_LABELS = {
     "SCN_UNUSUAL_AMOUNT": "Amount materially above sender history",
     "SCN_STRUCTURING_PROXY": "Potential structuring pattern",
     "SCN_FAN_ACTIVITY_PROXY": "Potential fan activity",
+    "SCN_STRUCTURING_ROLLING": "Rolling-window structuring pattern",
+    "SCN_FAN_OUT": "Multiple outgoing counterparties",
+    "SCN_FAN_IN": "Multiple incoming counterparties",
 }
 
 
@@ -125,6 +135,40 @@ def apply_scenarios(
         .fillna(False)
         .astype(int)
     )
+
+    required_network_columns = {
+        "Sender_window_tx_count",
+        "Sender_window_amount",
+        "Sender_window_unique_receivers",
+        "Receiver_window_tx_count",
+        "Receiver_window_amount",
+        "Receiver_window_unique_senders",
+    }
+
+    if required_network_columns.issubset(result.columns):
+        result["SCN_STRUCTURING_ROLLING"] = (
+            result["Amount"].lt(config.structuring_amount_ceiling)
+            & result["Sender_window_tx_count"].ge(config.rolling_min_tx_count)
+            & result["Sender_window_amount"].ge(config.rolling_aggregate_amount)
+        ).astype(int)
+
+        result["SCN_FAN_OUT"] = (
+            result["Sender_window_unique_receivers"].ge(
+                config.fan_out_unique_receivers
+            )
+            & result["Sender_window_tx_count"].ge(config.rolling_min_tx_count)
+        ).astype(int)
+
+        result["SCN_FAN_IN"] = (
+            result["Receiver_window_unique_senders"].ge(
+                config.fan_in_unique_senders
+            )
+            & result["Receiver_window_tx_count"].ge(config.rolling_min_tx_count)
+        ).astype(int)
+    else:
+        result["SCN_STRUCTURING_ROLLING"] = 0
+        result["SCN_FAN_OUT"] = 0
+        result["SCN_FAN_IN"] = 0
 
     scenario_columns = list(SCENARIO_WEIGHTS)
     result["Scenario_count"] = result[scenario_columns].sum(axis=1)
