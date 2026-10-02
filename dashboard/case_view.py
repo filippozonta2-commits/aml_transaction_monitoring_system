@@ -61,7 +61,7 @@ def render(d):
             chart=alt.Chart(geo).mark_bar().encode(
                 x=alt.X("amount:Q",title="Alerted amount"),y=alt.Y("route:N",sort="-x",title="Country route"),
                 tooltip=["sender_iso2","receiver_iso2","transactions","amount"]).properties(height=min(500,max(180,28*len(geo))))
-            st.altair_chart(chart,width="stretch")
+            st.altair_chart(chart,use_container_width=True)
             with st.expander("Transaction details"):
                 st.dataframe(edges.sort_values("Amount",ascending=False),width="stretch",hide_index=True)
         else: st.info("No transaction edges found for this case.")
