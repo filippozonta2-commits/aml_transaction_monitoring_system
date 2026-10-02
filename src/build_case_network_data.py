@@ -24,8 +24,8 @@ def main():
   z["CASE_ID"]=x.CASE_ID; z["account_id"]=x.account_id
   z["scenario"]=z.holdout_row_id.map(scen).fillna("CONTEXT"); z["is_alerted_transaction"]=(z.scenario!="CONTEXT").astype("int8")
   z["sender_iso2"]=z.Sender_bank_location.map(country_key); z["receiver_iso2"]=z.Receiver_bank_location.map(country_key)
-  z["cross_border"]=(z.sender_iso2!=z.receiver_iso2).astype("int8"); z["currency_mismatch"]=(z.Payment_currency!=z.Received_currency).astype("int8")
-  z["counterparty_id"]=np.where(z.Sender_account.astype(str).eq(acct),z.Receiver_account,z.Sender_account)
+  z["cross_border"]=(z.geo_pair_applicable.eq(1)&(z.sender_iso2!=z.receiver_iso2)).astype("int8"); z["currency_mismatch"]=(z.currency_pair_applicable.eq(1)&(z.Payment_currency!=z.Received_currency)).astype("int8")
+  z["counterparty_id"]=np.where(z.counterparty_applicable.eq(1),np.where(z.Sender_account.astype(str).eq(acct),z.Receiver_account,z.Sender_account),np.nan)
   chunks.append(z)
   stats.append((x.CASE_ID,x.account_id,len(z),z.loc[z.network_eligible.eq(1),"counterparty_account"].nunique(),int(z.cross_border.sum()),int(z.is_alerted_transaction.sum())))
   if i%1000==0: print(f"Cases processed: {i:,}/{len(q):,}",flush=True)
