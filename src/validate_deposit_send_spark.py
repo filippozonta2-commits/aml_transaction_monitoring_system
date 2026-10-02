@@ -64,22 +64,35 @@ def main():
     spark.sparkContext.setLogLevel("WARN")
 
     def sr(path):
-        d=spark.read.option("header",True).option("inferSchema",True).csv(path).select(*COLS)
-        date_raw=F.col("Date").cast("string")
+        # Read Date and Time as strings. inferSchema was turning Date into the
+        # current run date on this dataset, which destroyed the temporal join.
+        schema = {x.name: x.dataType for x in
+                  spark.read.option("header", True).option("inferSchema", True)
+                  .csv(path).schema.fields}
+        d=(spark.read.option("header",True).option("inferSchema",False).csv(path)
+           .select(*COLS))
+        date_raw=F.trim(F.col("Date"))
+        time_raw=F.trim(F.col("Time"))
+        # SAML-D temporal files use date-like strings; support the common
+        # representations explicitly and never infer them.
         date_parsed=F.coalesce(
             F.to_date(date_raw,"yyyy-MM-dd"),
             F.to_date(date_raw,"M/d/yyyy"),
-            F.to_date(date_raw,"MM/dd/yyyy")
+            F.to_date(date_raw,"MM/dd/yyyy"),
+            F.to_date(date_raw,"yyyy/MM/dd")
         )
-        date_str=F.date_format(date_parsed,"yyyy-MM-dd")
-        time_raw=F.col("Time").cast("string")
-        ts=F.coalesce(
-            F.to_timestamp(time_raw),
-            F.to_timestamp(F.concat_ws(" ",date_str,time_raw))
+        ts=F.to_timestamp(
+            F.concat_ws(" ",F.date_format(date_parsed,"yyyy-MM-dd"),time_raw)
         )
-        return d.withColumn("ts",ts).withColumn("Amount",F.col("Amount").cast("double"))
+        return (d.withColumn("ts",ts)
+                 .withColumn("Sender_account",F.col("Sender_account").cast("long"))
+                 .withColumn("Receiver_account",F.col("Receiver_account").cast("long"))
+                 .withColumn("Amount",F.col("Amount").cast("double"))
+                 .withColumn("Is_laundering",F.col("Is_laundering").cast("int")))
 
     strn=sr(a.train); sdev=sr(a.development)
+    null_dates=sdev.filter(F.col("ts").isNull()).count()
+    print(f"Spark NULL development timestamps: {null_dates:,}")
     sstart=sdev.agg(F.min("ts")).first()[0]
     if sstart is None:
         raise RuntimeError("Spark parsed all development timestamps as NULL; check Date/Time formats.")
