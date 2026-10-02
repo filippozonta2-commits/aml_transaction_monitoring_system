@@ -22,7 +22,17 @@ def _network(edges,account):
     fig,ax=plt.subplots(figsize=(11,6))
     pos=nx.spring_layout(G,seed=42,k=max(.5,2/(max(len(G),1)**.5)))
     nx.draw_networkx_nodes(G,pos,node_size=[1500 if n==str(account) else 430 for n in G],ax=ax)
-    nx.draw_networkx_edges(G,pos,width=[.8+min(4,G[u][v]["count"]*.35) for u,v in G.edges],arrows=True,arrowsize=16,alpha=.55,ax=ax)
+    # NetworkX/FancyArrowPatch points toward v, but the arrow head can visually
+    # overlap the node and look reversed. Shrink both ends so direction is explicit.
+    nx.draw_networkx_edges(
+        G,pos,
+        edgelist=list(G.edges()),
+        width=[.8+min(4,G[u][v]["count"]*.35) for u,v in G.edges],
+        arrows=True,arrowstyle="-|>",arrowsize=22,
+        connectionstyle="arc3,rad=0.04",
+        min_source_margin=18,min_target_margin=22,
+        alpha=.60,ax=ax
+    )
     nx.draw_networkx_labels(G,pos,font_size=7,ax=ax); ax.axis("off"); return fig
 
 def _iso3(x):
@@ -73,7 +83,7 @@ def render(d):
         st.dataframe(edges.sort_values("ts"),width="stretch",hide_index=True)
     with tabs[2]:
         st.pyplot(_network(edges,r.account_id),width="stretch")
-        st.caption("Directed graph of actual alerted transfers. Arrow = direction of funds; thicker edge = repeated transfers.")
+        st.caption("Direction is Sender → Receiver. Arrowhead points to the receiver; thicker edge = repeated transfers. The graph includes investigation-context transactions, not only alerted transfers.")
     with tabs[3]:
         fig,g=_world_map(edges)
         st.plotly_chart(fig,width="stretch")
