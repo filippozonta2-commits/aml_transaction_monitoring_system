@@ -11,7 +11,26 @@ Excluded from this proposed portfolio:
 This script evaluates; it does NOT freeze/promote scenarios and never accesses HOLDOUT.
 """
 from pathlib import Path
-import argparse, pandas as pd, numpy as np\n\ndef mismatch_z4_flags(dev):\n """Rebuild the proposed mismatch control using prior sender history only."""\n x=dev.copy()\n dt=pd.to_datetime(x["Date"].astype(str)+" "+x["Time"].astype(str),errors="coerce")\n x["_ts"]=dt\n x["_ord"]=np.arange(len(x))\n x=x.sort_values(["Sender_account","_ts","_ord"])\n grp=x.groupby("Sender_account",sort=False)["Amount"]\n x["_hist_n"]=grp.cumcount()\n x["_hist_avg"]=grp.transform(lambda v:v.shift().expanding().mean())\n x["_hist_sd"]=grp.transform(lambda v:v.shift().expanding().std())\n x["_z"]=(x["Amount"]-x["_hist_avg"])/x["_hist_sd"]\n pt=x["Payment_type"].astype(str).str.strip().str.lower()\n cross=x["Sender_bank_location"].astype(str).str.strip().str.upper().ne(x["Receiver_bank_location"].astype(str).str.strip().str.upper())\n curr=x["Payment_currency"].astype(str).str.strip().str.upper().ne(x["Received_currency"].astype(str).str.strip().str.upper())\n semantic=~pt.isin(["cash withdrawal","cash deposit"])\n x["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4"]=(semantic & cross & curr & x["_hist_n"].ge(10) & x["_hist_sd"].gt(0) & x["_z"].ge(4)).astype("int8")\n return x.sort_values("_ord")["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4"].to_numpy()
+import argparse, pandas as pd, numpy as np
+
+def mismatch_z4_flags(dev):
+ """Rebuild the proposed mismatch control using prior sender history only."""
+ x=dev.copy()
+ dt=pd.to_datetime(x["Date"].astype(str)+" "+x["Time"].astype(str),errors="coerce")
+ x["_ts"]=dt
+ x["_ord"]=np.arange(len(x))
+ x=x.sort_values(["Sender_account","_ts","_ord"])
+ grp=x.groupby("Sender_account",sort=False)["Amount"]
+ x["_hist_n"]=grp.cumcount()
+ x["_hist_avg"]=grp.transform(lambda v:v.shift().expanding().mean())
+ x["_hist_sd"]=grp.transform(lambda v:v.shift().expanding().std())
+ x["_z"]=(x["Amount"]-x["_hist_avg"])/x["_hist_sd"]
+ pt=x["Payment_type"].astype(str).str.strip().str.lower()
+ cross=x["Sender_bank_location"].astype(str).str.strip().str.upper().ne(x["Receiver_bank_location"].astype(str).str.strip().str.upper())
+ curr=x["Payment_currency"].astype(str).str.strip().str.upper().ne(x["Received_currency"].astype(str).str.strip().str.upper())
+ semantic=~pt.isin(["cash withdrawal","cash deposit"])
+ x["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4"]=(semantic & cross & curr & x["_hist_n"].ge(10) & x["_hist_sd"].gt(0) & x["_z"].ge(4)).astype("int8")
+ return x.sort_values("_ord")["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4"].to_numpy()
 
 def spark_csv(path):
  p=Path(path); fs=list(p.glob("part-*.csv")) if p.exists() else []
@@ -27,14 +46,16 @@ def main():
  ap.add_argument("--out",default="results/candidate_scenarios/proposed_12_scenario_portfolio.csv")
  a=ap.parse_args()
 
- dev=pd.read_csv(a.development)\n dev["Amount"]=pd.to_numeric(dev["Amount"],errors="coerce")
+ dev=pd.read_csv(a.development)
+ dev["Amount"]=pd.to_numeric(dev["Amount"],errors="coerce")
  c=pd.read_csv(a.candidate_flags).sort_values("development_row_id").reset_index(drop=True)
  g=spark_csv(a.geo_flags)
  if g is None: raise FileNotFoundError("Missing governed geography artifact.")
  g=g.sort_values("development_row_id").reset_index(drop=True)
  if not np.array_equal(c.development_row_id.to_numpy(),g.development_row_id.to_numpy()):
   raise ValueError("candidate/geography row ids do not align")
- for x in ["SCN_HIGH_RISK_GEOGRAPHY","SCN_SANCTIONED_GEOGRAPHY"]: c[x]=g[x].to_numpy()\n c["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4"]=mismatch_z4_flags(dev)
+ for x in ["SCN_HIGH_RISK_GEOGRAPHY","SCN_SANCTIONED_GEOGRAPHY"]: c[x]=g[x].to_numpy()
+ c["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4"]=mismatch_z4_flags(dev)
 
  frozen=["SCN_STRUCTURING","SCN_DEPOSIT_SEND","SCN_FAN_OUT","SCN_FAN_IN","SCN_CASH_WITHDRAWAL","SCN_SMURFING"]
  add=["SCN_CROSS_BORDER_CURRENCY_MISMATCH_Z4","SCN_UNUSUAL_AMOUNT",
@@ -66,17 +87,20 @@ def main():
     "cumulative_recall":float((current&y).sum()/total)})
 
  r=pd.DataFrame(rows); Path(a.out).parent.mkdir(parents=True,exist_ok=True);r.to_csv(a.out,index=False)
- print("\n=== PROPOSED 12-SCENARIO PORTFOLIO — DEVELOPMENT ONLY ===")
+ print("
+=== PROPOSED 12-SCENARIO PORTFOLIO — DEVELOPMENT ONLY ===")
  print(f"Transactions: {n:,} | AML positives: {total:,}")
  print(f"6 frozen baseline: {int(base.sum()):,} alerts ({base.mean():.2%}) | {int((base&y).sum()):,} AML | recall={(base&y).sum()/total:.2%}")
  print(r.to_string(index=False))
- print("\n=== PORTFOLIO SUMMARY ===")
+ print("
+=== PORTFOLIO SUMMARY ===")
  print(f"Proposed 12: {int(proposed.sum()):,} alerts ({proposed.mean():.2%} of transactions)")
  print(f"AML hits: {int((proposed&y).sum()):,}/{total:,} | recall={(proposed&y).sum()/total:.2%}")
  print(f"Increment vs frozen: +{int(proposed.sum()-base.sum()):,} alerts | +{int((proposed&y).sum()-(base&y).sum()):,} AML hits")
  print("Excluded for redesign: SCN_HIGH_TRANSACTION_VELOCITY, SCN_BEHAVIORAL_CHANGE")
  print("Zero-trigger graph motifs remain development candidates.")
- print("Cross-border mismatch proposal uses sender-history Z4 + semantic cash guard.")\n print("Governed geography controls retained for policy coverage.")
+ print("Cross-border mismatch proposal uses sender-history Z4 + semantic cash guard.")
+ print("Governed geography controls retained for policy coverage.")
  print("Evaluation only. No new scenario frozen. No HOLDOUT accessed.")
  print("Saved:",a.out)
 
