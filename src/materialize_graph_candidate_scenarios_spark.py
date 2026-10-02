@@ -21,6 +21,8 @@ def main():
     .withColumn("ts",F.to_timestamp(F.concat_ws(" ",F.col("Date").cast("string"),F.col("Time").cast("string"))))
     .filter(F.col("ts").isNotNull())
     .withColumn("day",F.to_date("ts"))
+    .withColumn("network_eligible",(~F.lower(F.trim(F.col("Payment_type"))).isin("cash withdrawal","cash deposit")).cast("int"))
+    .filter(F.col("network_eligible")==1)
     .select("development_row_id","ts","day",
             F.col("Sender_account").cast("string").alias("src"),
             F.col("Receiver_account").cast("string").alias("dst"),
