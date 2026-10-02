@@ -59,7 +59,8 @@ def main():
  cyc=(paths.alias("p").join(c1,(F.col("p.day")==F.col("c1.day"))&(F.col("p.c")==F.col("c1.src"))&(F.col("p.a")==F.col("c1.dst")))
       .select(F.col("p.day").alias("day"),F.col("p.a").alias("a"),F.col("p.b").alias("b"),F.col("p.c").alias("c"))
       .filter((F.col("a")!=F.col("b"))&(F.col("b")!=F.col("c"))&(F.col("a")!=F.col("c")))
-      .withColumn("cycle_key",F.array_sort(F.array("a","b","c"))).dropDuplicates(["day","cycle_key"]))
+      .withColumn("cycle_key",F.concat_ws("|",F.array_sort(F.array("a","b","c"))))
+      .dropDuplicates(["day","cycle_key"]))
  for name,df in [("scatter_gather",sg),("layered_fan_out",lfo),("layered_fan_in",lfi),("circular_movement",cyc)]:
   path=str(Path(a.out)/name); df.write.mode("overwrite").option("header",True).csv(path)
   print(f"{name}: {df.count():,} motifs",flush=True)
