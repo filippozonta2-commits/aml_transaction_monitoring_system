@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from src.scenario_config_frozen import FROZEN_SCENARIOS
+from src.scenario_catalog import SCENARIO_CATALOG
 
 FLAG_TO_CFG={
  "SCN_SMURFING":"smurfing_cash_deposit","SCN_CASH_WITHDRAWAL":"cash_withdrawal",
@@ -67,14 +68,22 @@ def render(d,mode="monitor"):
     if mode=="monitor":
         st.header("Scenario Monitoring"); st.caption("RULE-BASED DETECTION · Frozen scenarios generate transaction alerts. ML is not used here.")
         name=st.selectbox("Scenario",flags,format_func=lambda x:LABELS[x]); hit=alerts[alerts[name].eq(1)].copy()
+        meta=SCENARIO_CATALOG[name]
+        st.markdown(f"**{meta['direction']}** · Primary entity: **{meta['entity']}**")
+        st.caption(meta["pattern"])
         a,b,c=st.columns(3); a.metric("Triggered transactions",f"{len(hit):,}"); b.metric("Trigger rate",f"{len(hit)/len(alerts):.3%}"); c.metric("Engine","Frozen rules")
         st.subheader("Triggered transaction alerts")
         show=[x for x in ["holdout_row_id","ts","Sender_account","Receiver_account","Amount","Payment_type","SCENARIO_COUNT"] if x in hit.columns]
-        st.dataframe(hit[show] if show else hit,width="stretch",hide_index=True); return
+        st.dataframe(hit[show] if show else hit,width="stretch",hide_index=True)
+        st.caption("Network semantics: "+meta["network"])
+        return
 
     st.header("Simulation Lab"); st.caption("SANDBOX · Change rule thresholds and re-run detection without modifying frozen outputs or the ML model.")
     st.warning("SANDBOX — NO PRODUCTION IMPACT")
     name=st.selectbox("Scenario",flags,format_func=lambda x:LABELS[x]); key=FLAG_TO_CFG[name]; cfg=FROZEN_SCENARIOS[key]
+    meta=SCENARIO_CATALOG[name]
+    st.markdown(f"**{meta['direction']}** · Primary entity: **{meta['entity']}**")
+    st.caption(meta["pattern"])
     frozen=set(alerts.loc[alerts[name].eq(1),"holdout_row_id"].astype(int))
     a,b=st.columns(2); a.metric("Frozen alerts",f"{len(frozen):,}"); b.metric("Frozen trigger rate",f"{len(frozen)/len(alerts):.3%}")
     st.subheader("Sandbox thresholds")
