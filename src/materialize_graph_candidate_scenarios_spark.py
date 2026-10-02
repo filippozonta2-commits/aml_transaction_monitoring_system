@@ -31,10 +31,12 @@ def main():
  outdeg=e.groupBy("day","src").agg(F.countDistinct("dst").alias("out_degree"))
  indeg=e.groupBy("day","dst").agg(F.countDistinct("src").alias("in_degree"))
  # Gather -> Scatter: intermediary has >=3 distinct inbound and >=3 outbound counterparties same day.
- gs=(x.join(indeg,(x.day==indeg.day)&(x.src==indeg.dst),"left")
-       .join(outdeg,(x.day==outdeg.day)&(x.src==outdeg.src),"left")
-       .select(x["development_row_id"],F.coalesce(indeg["in_degree"],F.lit(0)).alias("in_degree"),
-               F.coalesce(outdeg["out_degree"],F.lit(0)).alias("out_degree"))
+ xi=x.alias("x"); ii=indeg.alias("ii"); oo=outdeg.alias("oo")
+ gs=(xi.join(ii,(F.col("x.day")==F.col("ii.day"))&(F.col("x.src")==F.col("ii.dst")),"left")
+       .join(oo,(F.col("x.day")==F.col("oo.day"))&(F.col("x.src")==F.col("oo.src")),"left")
+       .select(F.col("x.development_row_id"),
+               F.coalesce(F.col("ii.in_degree"),F.lit(0)).alias("in_degree"),
+               F.coalesce(F.col("oo.out_degree"),F.lit(0)).alias("out_degree"))
        .withColumn("SCN_GATHER_SCATTER_SPARK",((F.col("in_degree")>=3)&(F.col("out_degree")>=3)).cast("int")))
  # Two-hop paths A->B->C on same day.
  a1=e.alias("a"); b1=e.alias("b")
