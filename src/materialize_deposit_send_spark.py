@@ -78,8 +78,9 @@ def main():
 
     rule=((F.col("outgoing_count")>=1)&F.col("outflow_ratio").between(.50,3.0)&
           (F.col("cross_border_count")>=1))
-    flags=(feat.select("development_row_id","Is_laundering","Laundering_type")
-           .withColumn("SCN_DEPOSIT_SEND",F.when(rule,1).otherwise(0)).cache())
+    flags=(feat.withColumn("SCN_DEPOSIT_SEND",F.when(rule,1).otherwise(0))
+           .select("development_row_id","Is_laundering","Laundering_type","SCN_DEPOSIT_SEND")
+           .cache())
     flags.count()
 
     target=(F.col("Is_laundering")==1)&(F.col("Laundering_type")=="Deposit-Send")
