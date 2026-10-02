@@ -29,6 +29,7 @@ data/processed/
 models/
 
 # Generated results
+results/eda/
 results/*.csv
 results/*.json
 results/figures/*.png
