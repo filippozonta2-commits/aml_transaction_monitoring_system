@@ -29,27 +29,42 @@ def main():
           "Is_laundering","Laundering_type"]
 
     def read(path):
-        d=spark.read.option("header",True).option("inferSchema",True).csv(path).select(*cols)
-        # SAML-D Time may already contain a full timestamp or only a time.
-        d=d.withColumn(
-            "ts",
-            F.coalesce(
-                F.to_timestamp("Time"),
-                F.to_timestamp(F.concat_ws(" ",F.col("Date").cast("string"),
-                                             F.col("Time").cast("string")))
-            )
+        # Keep Date/Time as strings. Spark schema inference can misinterpret
+        # SAML-D Date values and silently destroy the temporal range join.
+        d=(spark.read.option("header",True).option("inferSchema",False).csv(path)
+           .select(*cols))
+        date_raw=F.trim(F.col("Date"))
+        time_raw=F.trim(F.col("Time"))
+        date_parsed=F.coalesce(
+            F.to_date(date_raw,"yyyy-MM-dd"),
+            F.to_date(date_raw,"M/d/yyyy"),
+            F.to_date(date_raw,"MM/dd/yyyy"),
+            F.to_date(date_raw,"yyyy/MM/dd")
         )
-        return d.withColumn("Amount",F.col("Amount").cast("double"))
+        ts=F.to_timestamp(
+            F.concat_ws(" ",F.date_format(date_parsed,"yyyy-MM-dd"),time_raw)
+        )
+        return (d.withColumn("ts",ts)
+                 .withColumn("Sender_account",F.col("Sender_account").cast("long"))
+                 .withColumn("Receiver_account",F.col("Receiver_account").cast("long"))
+                 .withColumn("Amount",F.col("Amount").cast("double"))
+                 .withColumn("Is_laundering",F.col("Is_laundering").cast("int")))
 
     print("Loading TRAIN + DEVELOPMENT with Spark...")
     tr=read(a.train)
     dev=read(a.development).cache()
     dev_count=dev.count()
+    null_ts=dev.filter(F.col("ts").isNull()).count()
+    print(f"Spark NULL development timestamps: {null_ts:,}")
     start=dev.agg(F.min("ts")).first()[0]
+    if start is None:
+        raise RuntimeError("Spark parsed all development timestamps as NULL; check Date/Time formats.")
     print(f"Development rows: {dev_count:,}")
+    print(f"Development start: {start}")
     print("HOLDOUT is not accessed.")
 
     # Seven-day TRAIN context is sufficient for our longest (168h) horizon.
+    # Build the cutoff in Spark so timestamp/interval arithmetic stays typed.
     context=tr.filter(F.col("ts") >= F.lit(start)-F.expr("INTERVAL 7 DAYS"))
     events=context.unionByName(dev).select(
         F.col("Sender_account").alias("event_sender"),
