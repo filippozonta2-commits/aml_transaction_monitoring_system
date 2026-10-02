@@ -65,14 +65,27 @@ def main():
 
     def sr(path):
         d=spark.read.option("header",True).option("inferSchema",True).csv(path).select(*COLS)
-        # Mirror Pandas explicitly: Date -> yyyy-MM-dd plus raw Time.
-        date_str=F.date_format(F.to_date(F.col("Date").cast("string")),"yyyy-MM-dd")
-        ts=F.to_timestamp(F.concat_ws(" ",date_str,F.col("Time").cast("string")))
+        date_raw=F.col("Date").cast("string")
+        date_parsed=F.coalesce(
+            F.to_date(date_raw,"yyyy-MM-dd"),
+            F.to_date(date_raw,"M/d/yyyy"),
+            F.to_date(date_raw,"MM/dd/yyyy")
+        )
+        date_str=F.date_format(date_parsed,"yyyy-MM-dd")
+        time_raw=F.col("Time").cast("string")
+        ts=F.coalesce(
+            F.to_timestamp(time_raw),
+            F.to_timestamp(F.concat_ws(" ",date_str,time_raw))
+        )
         return d.withColumn("ts",ts).withColumn("Amount",F.col("Amount").cast("double"))
 
     strn=sr(a.train); sdev=sr(a.development)
     sstart=sdev.agg(F.min("ts")).first()[0]
-    sevents=(strn.filter(F.col("ts")>=F.lit(sstart)-F.expr("INTERVAL 7 DAYS"))
+    if sstart is None:
+        raise RuntimeError("Spark parsed all development timestamps as NULL; check Date/Time formats.")
+    cutoff=sstart-pd.Timedelta(days=7)
+    print(f"Spark development start: {sstart} | context cutoff: {cutoff}")
+    sevents=(strn.filter(F.col("ts")>=F.lit(cutoff.to_pydatetime()))
              .unionByName(sdev)
              .select(F.col("Sender_account").alias("event_sender"),
                      F.col("Amount").alias("event_amount"),
