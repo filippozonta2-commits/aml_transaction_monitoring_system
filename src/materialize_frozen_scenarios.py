@@ -77,7 +77,7 @@ def main():
     # Smurfing Cash Deposit: exact frozen 45D channel-aware rule.
     sm=data[data["Payment_type"].eq("Cash Deposit")].copy()
     sm=sender_windows(sm,start,45)
-    m=(sm["tx_count"].ge(3)&sm["median_amount"].lt(4000)&sm["aggregate_amount"].ge(10000))
+    m=(sm["tx_count"].ge(3)&sm["median_amount"].lt(4000)&sm["aggregate_amount"].ge(10000)&\n       sm["cross_border_rate"].le(.15)&sm["currency_mismatch_rate"].le(.15))
     ids=set(sm.loc[m & sm["Period"].eq("development"),"development_row_id"].astype(int))
     flags["SCN_SMURFING"]=flags["development_row_id"].isin(ids).astype("int8")
 
