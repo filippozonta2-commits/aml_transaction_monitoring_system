@@ -25,6 +25,11 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
+try:
+    from .features import add_transaction_features, add_historical_account_features
+except ImportError:
+    from features import add_transaction_features, add_historical_account_features
+
 
 COUNTRY_MAP = {
     "UK": "United Kingdom",
@@ -45,6 +50,22 @@ NUMERICAL_FEATURES = [
     "Sender_risk_score",
     "Receiver_risk_score",
     "Cross_border",
+    "Hour",
+    "Day_of_week",
+    "Is_weekend",
+    "Is_night",
+    "Currency_mismatch",
+    "Risk_difference",
+    "Max_country_risk",
+    "Any_sanctioned_country",
+    "Sender_prior_tx_count",
+    "Receiver_prior_tx_count",
+    "Sender_prior_total_amount",
+    "Receiver_prior_total_amount",
+    "Sender_prior_avg_amount",
+    "Receiver_prior_avg_amount",
+    "Sender_seconds_since_previous",
+    "Receiver_seconds_since_previous",
 ]
 
 FEATURES = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
@@ -109,16 +130,9 @@ def enrich_country_risk(
 
 
 def engineer_features(data: pd.DataFrame) -> pd.DataFrame:
-    """Create the transaction-level baseline features."""
-    data = data.copy()
-
-    data["Cross_border"] = (
-        data["Sender_bank_location"] != data["Receiver_bank_location"]
-    ).astype(int)
-
-    # log1p is safe even when a transaction amount is zero.
-    data["Log_amount"] = np.log1p(data["Amount"])
-
+    """Create transaction and leakage-safe historical account features."""
+    data = add_transaction_features(data)
+    data = add_historical_account_features(data)
     return data
 
 
