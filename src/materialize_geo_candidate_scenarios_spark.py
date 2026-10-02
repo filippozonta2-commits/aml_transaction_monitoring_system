@@ -21,16 +21,20 @@ def main():
  x=(spark.read.option("header",True).option("inferSchema",True).csv(a.development)
     .withColumn("development_row_id",F.monotonically_increasing_id()))
  r=spark.read.option("header",True).option("inferSchema",True).csv(a.country_risk)
- country=pick(r.columns,["country_iso2","iso2","country_code","code","country"])
- risk=pick(r.columns,["risk_level","risk_rating","risk","country_risk"])
- sanction=pick(r.columns,["sanctioned","sanctions","restricted","is_sanctioned"])
+ country=pick(r.columns,["ISO Code","country_iso2","iso2","country_code","code","country"])
+ risk=pick(r.columns,["Overall Score","ML/TF Risk","risk_level","risk_rating","risk","country_risk"])
+ sanction=pick(r.columns,["Sanction","sanctioned","sanctions","restricted","is_sanctioned"])
  if not country or not risk: raise ValueError(f"Country-risk schema unsupported: {r.columns}")
- rr=r.select(F.upper(F.trim(F.col(country).cast("string"))).alias("country_key"),F.upper(F.trim(F.col(risk).cast("string"))).alias("risk_level"),
+ risk_expr=F.col(risk).cast("double")
+ rr=r.select(F.upper(F.trim(F.col(country).cast("string"))).alias("country_key"),
+             risk_expr.alias("risk_score"),
              *(([F.col(sanction).alias("sanctioned")]) if sanction else [])).dropDuplicates(["country_key"])
+ risk_cut=rr.approxQuantile("risk_score",[0.90],0.001)[0]
+ print(f"Country-risk high-risk candidate cutoff (reference 90th percentile): {risk_cut}",flush=True)
  s=rr.alias("s"); q=rr.alias("q")
  z=(x.join(s,F.upper(F.trim(F.col("Sender_bank_location")))==F.col("s.country_key"),"left")
       .join(q,F.upper(F.trim(F.col("Receiver_bank_location")))==F.col("q.country_key"),"left"))
- high=(F.col("s.risk_level").isin("HIGH","VERY HIGH","SEVERE")|F.col("q.risk_level").isin("HIGH","VERY HIGH","SEVERE"))
+ high=((F.col("s.risk_score")>=F.lit(risk_cut))|(F.col("q.risk_score")>=F.lit(risk_cut)))
  out=z.select("development_row_id",high.cast("int").alias("SCN_HIGH_RISK_GEOGRAPHY"))
  if sanction:
   def truth(c): return F.lower(F.trim(c.cast("string"))).isin("1","true","yes","y","sanctioned","restricted")
