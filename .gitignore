@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Raw and processed datasets
+data/*.csv
+data/*.parquet
+data/*.feather
+data/*.pkl
+data/*.zip
+data/raw/
+data/processed/
+
+# Model artifacts
+*.joblib
+*.pickle
+models/
+
+# Generated results
+results/*.csv
+results/*.json
+results/figures/*.png
+results/figures/*.jpg
+
+# Keep documentation placeholders
+!data/README.md
+!results/figures/.gitkeep
