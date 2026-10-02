@@ -1,62 +1,65 @@
-"""Evaluate selected Deposit-Send V4 receiver-flow candidates on all DEVELOPMENT transactions.
-
-For each candidate, every development transaction is treated as a potential anchor.
-The anchor's Receiver_account is followed forward and cumulative outgoing activity
-is measured. Reports alert volume, precision, Deposit-Send recall, and lift.
-TRAIN is warm-up context only. HOLDOUT is never accessed.
+"""Fast PySpark evaluation of selected Deposit-Send V4 receiver-flow candidates.
+TRAIN supplies warm-up context; metrics are DEVELOPMENT-only. HOLDOUT is never accessed.
 """
 from pathlib import Path
-import numpy as np, pandas as pd
+from pyspark.sql import SparkSession, functions as F
 
-COLS=["Time","Date","Sender_account","Receiver_account","Amount","Payment_type","Is_laundering","Laundering_type"]
-CANDS=[
- ("A_recall",72,.10,5.0,False),
- ("B_balanced",72,.50,3.0,False),
- ("C_tighter",72,.50,2.0,False),
- ("D_cb_baseline",72,.50,3.0,True),
- ("E_48h",48,.25,3.0,False),
-]
-def read(p):
- d=pd.read_csv(p,usecols=COLS)
- d["ts"]=pd.to_datetime(pd.to_datetime(d.Date,errors="coerce").dt.strftime("%Y-%m-%d")+" "+d.Time.astype(str),errors="coerce")
- d.Amount=pd.to_numeric(d.Amount,errors="coerce")
- return d.dropna(subset=["ts"]).sort_values("ts").reset_index(drop=True)
+TRAIN="data/temporal/SAML-D_train.csv"; DEV="data/temporal/SAML-D_development.csv"
+CANDS=[("A_recall",72,.10,5.0,False),("B_balanced",72,.50,3.0,False),
+       ("C_tighter",72,.50,2.0,False),("D_cb_baseline",72,.50,3.0,True),
+       ("E_48h",48,.25,3.0,False)]
+
+def load(spark,path,split):
+    d=(spark.read.option("header",True).option("inferSchema",True).csv(path)
+       .select("Time","Date","Sender_account","Receiver_account","Amount","Payment_type","Is_laundering","Laundering_type")
+       .withColumn("Amount",F.col("Amount").cast("double"))
+       .withColumn("Is_laundering",F.col("Is_laundering").cast("int"))
+       .withColumn("ts",F.to_timestamp(F.concat_ws(" ",F.date_format(F.to_date(F.col("Date").cast("string")),"yyyy-MM-dd"),F.col("Time").cast("string"))))
+       .withColumn("split",F.lit(split)).filter(F.col("ts").isNotNull()))
+    return d
 
 def main():
- print("Loading TRAIN warm-up + DEVELOPMENT...")
- tr=read("data/temporal/SAML-D_train.csv"); dev=read("data/temporal/SAML-D_development.csv")
- print(f"Development rows: {len(dev):,} | AML: {int(dev.Is_laundering.sum()):,}")
- print("HOLDOUT is not accessed.")
- maxh=max(x[1] for x in CANDS); start=dev.ts.min()
- ev=pd.concat([tr[tr.ts>=start-pd.Timedelta(hours=maxh)],dev],ignore_index=True).sort_values("ts")
- groups={k:g for k,g in ev.groupby("Sender_account",sort=False)}
- target=(dev.Is_laundering.eq(1)&dev.Laundering_type.eq("Deposit-Send"))
- target_n=int(target.sum()); overall=dev.Is_laundering.mean()
- rows=[]
- # Straightforward implementation; candidate count is intentionally small.
- for name,h,lo,hi,reqcb in CANDS:
-  print(f"Evaluating {name}: {h}h ratio {lo}-{hi} cross-border={reqcb}...")
-  flags=np.zeros(len(dev),dtype=bool)
-  for i,r in enumerate(dev.itertuples()):
-   g=groups.get(r.Receiver_account)
-   if g is None or pd.isna(r.Amount) or r.Amount<=0: continue
-   z=g[(g.ts>r.ts)&(g.ts<=r.ts+pd.Timedelta(hours=h))]
-   if z.empty: continue
-   ratio=z.Amount.sum()/r.Amount
-   flags[i]=(lo<=ratio<=hi) and ((z.Payment_type=="Cross-border").any() if reqcb else True)
-  trig=int(flags.sum()); aml=int(dev.loc[flags,"Is_laundering"].sum())
-  ds=int((flags & target.to_numpy()).sum())
-  precision=aml/trig if trig else 0.; recall=ds/target_n if target_n else 0.
-  rows.append((name,h,lo,hi,reqcb,trig,trig/len(dev),aml,precision,precision/overall if overall else np.nan,ds,recall))
- res=pd.DataFrame(rows,columns=["Candidate","Horizon_hours","Min_ratio","Max_ratio","Require_cross_border",
-  "Triggered_transactions","Trigger_rate","AML_cases","Precision","Lift_vs_overall_AML_rate","Deposit_Send_hits","Deposit_Send_recall"])
- res=res.sort_values(["Deposit_Send_recall","Precision"],ascending=False)
- out=Path("results/deposit_send_v4_evaluation"); out.mkdir(parents=True,exist_ok=True)
- res.to_csv(out/"candidate_evaluation.csv",index=False)
- print("\n=== DEPOSIT-SEND V4 CANDIDATE EVALUATION ===")
- print(res.to_string(index=False))
- print(f"\nOverall development AML rate: {overall:.4%}")
- print(f"Deposit-Send targets: {target_n}")
- print(f"Saved: {out/'candidate_evaluation.csv'}")
- print("Development-only. HOLDOUT was not accessed.")
+    spark=(SparkSession.builder.appName("DepositSendV4Evaluation").config("spark.sql.shuffle.partitions","24").getOrCreate())
+    spark.sparkContext.setLogLevel("WARN")
+    print("Loading TRAIN warm-up + DEVELOPMENT with Spark...")
+    tr=load(spark,TRAIN,"train"); dev=load(spark,DEV,"development").cache()
+    n=dev.count(); aml_n=dev.filter(F.col("Is_laundering")==1).count(); overall=aml_n/n
+    start=dev.agg(F.min("ts")).first()[0]
+    ev=tr.filter(F.col("ts")>=F.lit(start)-F.expr("INTERVAL 72 HOURS")).unionByName(dev).cache()
+    anchors=(dev.withColumn("anchor_id",F.monotonically_increasing_id())
+             .select("anchor_id",F.col("ts").alias("anchor_ts"),F.col("Receiver_account").alias("focal"),
+                     F.col("Amount").alias("anchor_amount"),"Is_laundering","Laundering_type")).cache()
+    outs=ev.select(F.col("Sender_account").alias("focal"),F.col("ts").alias("out_ts"),
+                   F.col("Amount").alias("out_amount"),F.col("Payment_type").alias("out_payment"))
+    # One 72h range join only; 48h is derived from the same joined rows.
+    j=(anchors.alias("a").join(outs.alias("o"),
+       (F.col("a.focal")==F.col("o.focal"))&(F.col("o.out_ts")>F.col("a.anchor_ts"))&
+       (F.col("o.out_ts")<=F.col("a.anchor_ts")+F.expr("INTERVAL 72 HOURS")),"left")
+       .withColumn("hours_after",(F.unix_timestamp("out_ts")-F.unix_timestamp("anchor_ts"))/3600.0))
+    feat=(j.groupBy("anchor_id","anchor_amount","Is_laundering","Laundering_type")
+          .agg(F.sum(F.when(F.col("hours_after")<=48,F.col("out_amount")).otherwise(0.0)).alias("sum48"),
+               F.sum(F.col("out_amount")).alias("sum72"),
+               F.max(F.when((F.col("hours_after")<=48)&(F.col("out_payment")=="Cross-border"),1).otherwise(0)).alias("cb48"),
+               F.max(F.when(F.col("out_payment")=="Cross-border",1).otherwise(0)).alias("cb72"))
+          .withColumn("ratio48",F.col("sum48")/F.col("anchor_amount"))
+          .withColumn("ratio72",F.col("sum72")/F.col("anchor_amount")).cache())
+    target_n=anchors.filter((F.col("Is_laundering")==1)&(F.col("Laundering_type")=="Deposit-Send")).count()
+    rows=[]
+    for name,h,lo,hi,reqcb in CANDS:
+        ratio=F.col("ratio48" if h==48 else "ratio72"); cb=F.col("cb48" if h==48 else "cb72")
+        cond=(ratio>=lo)&(ratio<=hi)
+        if reqcb: cond=cond&(cb==1)
+        x=feat.filter(cond)
+        vals=x.agg(F.count("*").alias("trig"),F.sum("Is_laundering").alias("aml"),
+            F.sum(F.when((F.col("Is_laundering")==1)&(F.col("Laundering_type")=="Deposit-Send"),1).otherwise(0)).alias("ds")).first()
+        trig=int(vals.trig or 0); aml=int(vals.aml or 0); ds=int(vals.ds or 0); p=aml/trig if trig else 0
+        rows.append((name,h,lo,hi,reqcb,trig,trig/n,aml,p,p/overall if overall else 0,ds,ds/target_n if target_n else 0))
+    cols=["Candidate","Horizon_hours","Min_ratio","Max_ratio","Require_cross_border","Triggered_transactions","Trigger_rate","AML_cases","Precision","Lift_vs_overall_AML_rate","Deposit_Send_hits","Deposit_Send_recall"]
+    res=spark.createDataFrame(rows,cols).orderBy(F.desc("Deposit_Send_recall"),F.desc("Precision"))
+    print("\n=== DEPOSIT-SEND V4 CANDIDATE EVALUATION ==="); res.show(truncate=False)
+    out="results/deposit_send_v4_evaluation"; Path(out).mkdir(parents=True,exist_ok=True)
+    res.coalesce(1).write.mode("overwrite").option("header",True).csv(out+"/spark_candidate_evaluation")
+    print(f"Overall development AML rate: {overall:.4%} | Deposit-Send targets: {target_n}")
+    print("Development-only. HOLDOUT was not accessed.")
+    spark.stop()
 if __name__=="__main__": main()
