@@ -53,7 +53,7 @@ def main():
     ).orderBy(F.desc("n")).show(100,False)
 
     print("\nAmount summary:")
-    mmcw.select("Amount").summary("count","min","25%","50%","75%","max","mean","stddev").show(False)
+    mmcw.select(F.col("Amount").cast("double").alias("Amount")).summary("count","min","25%","50%","75%","max","mean","stddev").show(n=20, truncate=False)
 
     cols=[c for c in ["Time","Date","Sender_account","Receiver_account","Amount","Payment_currency",
           "Received_currency","Sender_bank_location","Receiver_bank_location","Payment_type",
