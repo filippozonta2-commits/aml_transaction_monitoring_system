@@ -16,7 +16,7 @@ def main():
  ap=argparse.ArgumentParser()
  ap.add_argument("--development",type=Path,default=Path("data/temporal/SAML-D_development.csv"))
  ap.add_argument("--candidate-flags",type=Path,default=Path("results/candidate_scenarios/candidate_flags_development.csv"))
- ap.add_argument("--geo-flags",default="results/candidate_scenarios/geo_spark/geo_flags")
+ ap.add_argument("--geo-flags",default="results/candidate_scenarios/governed_geo_spark")
  ap.add_argument("--frozen-non-ds",type=Path,default=Path("results/unified_dashboard/materialized_non_deposit_send.csv"))
  ap.add_argument("--frozen-ds",default="results/unified_dashboard/deposit_send_flags")
  ap.add_argument("--out",type=Path,default=Path("results/candidate_scenarios"))
@@ -24,12 +24,17 @@ def main():
  dev=pd.read_csv(a.development,usecols=["Is_laundering","Laundering_type"])
  cand=pd.read_csv(a.candidate_flags)
  if len(dev)!=len(cand): raise ValueError("candidate/development row mismatch")
- # Add Spark geography output by stable row id when available.
+ # Geography scenarios are policy-driven and MUST come from the governed registry.
  geo=read_spark_csv(a.geo_flags)
- if geo is not None:
-  geo=geo.sort_values("development_row_id").reset_index(drop=True)
-  if len(geo)==len(cand):
-   for c in ["SCN_HIGH_RISK_GEOGRAPHY","SCN_SANCTIONED_GEOGRAPHY"]: cand[c]=geo[c].to_numpy()
+ if geo is None:
+  raise FileNotFoundError(f"Missing governed geography artifact: {a.geo_flags}. Run: python src/build_governed_country_risk_spark.py && python src/materialize_governed_geo_scenarios_spark.py")
+ geo=geo.sort_values("development_row_id").reset_index(drop=True)
+ cand=cand.sort_values("development_row_id").reset_index(drop=True)
+ if len(geo)!=len(cand) or not np.array_equal(geo.development_row_id.to_numpy(),cand.development_row_id.to_numpy()):
+  raise ValueError("Governed geography/candidate DEVELOPMENT row ids do not align.")
+ for col in ["SCN_HIGH_RISK_GEOGRAPHY","SCN_SANCTIONED_GEOGRAPHY"]:
+  cand[col]=geo[col].to_numpy()
+ print(f"Governed geography loaded: HIGH={int(cand.SCN_HIGH_RISK_GEOGRAPHY.sum()):,} | SANCTIONED={int(cand.SCN_SANCTIONED_GEOGRAPHY.sum()):,}")
  # Build the exact six-scenario DEVELOPMENT baseline from the frozen artifacts.
  non=a.frozen_non_ds
  if not non.exists():
