@@ -46,11 +46,11 @@ def render(d):
     st.header("Case Investigation")
     cid=st.selectbox("Select investigation case",q.CASE_ID.tolist())
     r=q[q.CASE_ID.eq(cid)].iloc[0]
-    st.markdown(f"### {cid}  ·  Account {r.account_id}")
+    st.markdown(f"### {cid}  ·  Account {r.account_id}")\n    st.markdown("#### Detection — Scenario Engine")\n    st.caption("Why was this case created? Frozen rule-based scenarios generated the underlying transaction alerts.")
     a,b,c,e=st.columns(4)
     a.metric("Priority",f"#{int(r.priority_rank):,} · {r.priority_band}"); b.metric("ML risk score",f"{r.risk_score:.3f}")
     c.metric("Alert events",f"{int(r.transaction_alerts):,}"); e.metric("Alerted amount",f"${r.total_alert_amount:,.0f}")
-    st.caption(f"Active scenarios: {r.scenario_list}")
+    st.caption(f"Active scenarios: {r.scenario_list}")\n    st.markdown("#### Prioritization — Machine Learning")\n    st.caption("Why should this case be reviewed earlier? The frozen XGBoost model ranks cases after case creation; it does not generate alerts.")\n    a,b=st.columns(2); a.metric("Priority",f"#{int(r.priority_rank):,} · {r.priority_band}"); b.metric("ML risk score",f"{r.risk_score:.3f}")
     if net is None:
         st.info("Run python src/build_case_network_data.py once."); return
     z=net[net.CASE_ID.eq(cid)].copy()
@@ -71,7 +71,7 @@ def render(d):
         st.caption("Directed graph of actual alerted transfers. Arrow = direction of funds; thicker edge = repeated transfers.")
     with tabs[3]:
         fig,g=_world_map(edges)
-        st.plotly_chart(fig,use_container_width=True)
+        st.plotly_chart(fig,width="stretch")
         st.caption("Country exposure for this investigation case. Hover over a country for sent/received alerted amounts and transaction volume.")
         cb=edges[edges.cross_border.eq(1)]
         if len(cb):
