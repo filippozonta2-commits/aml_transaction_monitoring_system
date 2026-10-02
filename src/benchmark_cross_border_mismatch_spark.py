@@ -20,12 +20,17 @@ def main():
  x=x.withColumn("Amount",F.col("Amount").cast("double"))
  aml=F.col("Is_laundering").cast("int")==1
 
- # Existing candidate definition: cross-border AND payment/received currency mismatch.
- base=((F.upper(F.trim("Sender_bank_location"))!=F.upper(F.trim("Receiver_bank_location"))) &
+ # Semantic guard: cash deposit/withdrawal do not have a true two-sided counterparty pair.
+ # Keep raw sender/receiver fields for lineage, but exclude cash transactions from
+ # cross-border/currency-pair scenario interpretation.
+ pt=F.lower(F.trim(F.col("Payment_type")))
+ pair_applicable=~pt.isin("cash withdrawal","cash deposit")
+ base=(pair_applicable &
+       (F.upper(F.trim("Sender_bank_location"))!=F.upper(F.trim("Receiver_bank_location"))) &
        (F.upper(F.trim("Payment_currency"))!=F.upper(F.trim("Received_currency"))))
  xb=x.filter(base).cache()
  base_n=xb.count()
- print(f"Base mismatch triggers: {base_n:,}")
+ print(f"Semantically valid base mismatch triggers: {base_n:,}")
 
  qs=[0.50,0.75,0.90,0.95,0.975,0.99]
  vals=x.approxQuantile("Amount",qs,0.001)
