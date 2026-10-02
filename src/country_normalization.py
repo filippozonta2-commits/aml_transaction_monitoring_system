@@ -11,6 +11,7 @@ ALIASES = {
     "USA":"US","U S A":"US","U.S.":"US","U.S.A.":"US",
     "UNITED STATES OF AMERICA":"US",
     "GREAT BRITAIN":"GB",
+    "TURKEY":"TR",
 }
 
 def _clean(value):
