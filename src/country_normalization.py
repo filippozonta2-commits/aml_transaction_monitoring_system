@@ -1,12 +1,12 @@
-"""Canonical country normalization for SAML-D / country-risk enrichment."""
+"""Canonical ISO-2 country normalization for SAML-D / country-risk enrichment."""
 import re
 
 ALIASES = {
-    "US":"USA","USA":"USA","UNITED STATES":"USA","UNITED STATES OF AMERICA":"USA",
-    "U S A":"USA","U.S.":"USA","U.S.A.":"USA",
-    "UK":"GBR","GB":"GBR","GBR":"GBR","UNITED KINGDOM":"GBR",
-    "UNITED KINGDOM OF GREAT BRITAIN AND NORTHERN IRELAND":"GBR","GREAT BRITAIN":"GBR",
-    "UAE":"ARE","AE":"ARE","ARE":"ARE","UNITED ARAB EMIRATES":"ARE",
+    "US":"US","USA":"US","UNITED STATES":"US","UNITED STATES OF AMERICA":"US",
+    "U S A":"US","U.S.":"US","U.S.A.":"US",
+    "UK":"GB","GB":"GB","GBR":"GB","UNITED KINGDOM":"GB",
+    "UNITED KINGDOM OF GREAT BRITAIN AND NORTHERN IRELAND":"GB","GREAT BRITAIN":"GB",
+    "UAE":"AE","AE":"AE","ARE":"AE","UNITED ARAB EMIRATES":"AE",
 }
 def country_key(value):
     if value is None:
