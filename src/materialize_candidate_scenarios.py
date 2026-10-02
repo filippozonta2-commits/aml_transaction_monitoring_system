@@ -6,6 +6,7 @@ rather than unrestricted graph expansion.
 """
 from pathlib import Path
 import argparse, numpy as np, pandas as pd
+from transaction_semantics import add_transaction_semantics
 
 FLAGS=["SCN_SINGLE_LARGE_TRANSACTION","SCN_UNUSUAL_AMOUNT","SCN_HIGH_TRANSACTION_VELOCITY",
 "SCN_GATHER_SCATTER","SCN_SCATTER_GATHER","SCN_CIRCULAR_MOVEMENT","SCN_LAYERED_FAN_OUT",
@@ -15,9 +16,9 @@ FLAGS=["SCN_SINGLE_LARGE_TRANSACTION","SCN_UNUSUAL_AMOUNT","SCN_HIGH_TRANSACTION
 def main():
  p=argparse.ArgumentParser(); p.add_argument("--development",type=Path,default=Path("data/temporal/SAML-D_development.csv")); p.add_argument("--out",type=Path,default=Path("results/candidate_scenarios")); a=p.parse_args()
  print("Loading DEVELOPMENT only...",flush=True)
- x=pd.read_csv(a.development); x["development_row_id"]=np.arange(len(x),dtype="int64")
+ x=add_transaction_semantics(pd.read_csv(a.development)); x["development_row_id"]=np.arange(len(x),dtype="int64")
  x["ts"]=pd.to_datetime(pd.to_datetime(x.Date,errors="coerce").dt.strftime("%Y-%m-%d")+" "+x.Time.astype(str),errors="coerce"); x=x.dropna(subset=["ts"]).copy()
- x["cross"]=(x.Sender_bank_location!=x.Receiver_bank_location); x["fx"]=(x.Payment_currency!=x.Received_currency)
+ x["cross"]=x.geo_pair_applicable.eq(1)&(x.Sender_bank_location!=x.Receiver_bank_location); x["fx"]=x.currency_pair_applicable.eq(1)&(x.Payment_currency!=x.Received_currency)
  f=pd.DataFrame({"development_row_id":x.development_row_id})
  # Amount: global tail + sender-relative tail. Quantiles are candidate diagnostics, not frozen thresholds.
  q995=x.Amount.quantile(.995); f["SCN_SINGLE_LARGE_TRANSACTION"]=x.Amount.ge(q995).astype("int8").to_numpy()
