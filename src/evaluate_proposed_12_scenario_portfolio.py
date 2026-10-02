@@ -1,14 +1,13 @@
 """Evaluate the proposed 12-control AML scenario portfolio on DEVELOPMENT only.
 
-Portfolio = 6 frozen scenarios + 4 empirically useful candidates +
-2 governed geography controls.
+Legacy DEVELOPMENT evaluator for the pre-freeze 12-control proposal.\nThe authoritative frozen portfolio is governance/PORTFOLIO_FREEZE_V3.md.
 
 Excluded from this proposed portfolio:
 - SCN_HIGH_TRANSACTION_VELOCITY: requires redesign/tuning
 - SCN_BEHAVIORAL_CHANGE: requires redesign/tuning
 - zero-trigger second-order graph candidates: remain development candidates
 
-This script evaluates; it does NOT freeze/promote scenarios and never accesses HOLDOUT.
+This script remains DEVELOPMENT-only and includes the mismatch Z4 control that was\nsubsequently excluded at freeze because it had zero unique portfolio contribution.
 """
 from pathlib import Path
 import argparse, pandas as pd, numpy as np
