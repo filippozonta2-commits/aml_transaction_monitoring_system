@@ -41,3 +41,5 @@ results/figures/*.jpg
 # Keep documentation placeholders
 !data/README.md
 !results/figures/.gitkeep
+
+results/structuring_analysis/
