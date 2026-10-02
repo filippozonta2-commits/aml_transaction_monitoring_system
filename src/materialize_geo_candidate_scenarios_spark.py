@@ -31,12 +31,26 @@ def main():
              *(([F.col(sanction).alias("sanctioned")]) if sanction else [])).dropDuplicates(["country_key"])
  risk_cut=rr.approxQuantile("risk_score",[0.90],0.001)[0]
  print(f"Country-risk high-risk candidate cutoff (reference 90th percentile): {risk_cut}",flush=True)
- s=rr.alias("s"); q=rr.alias("q")
- z=(x.join(s,F.upper(F.trim(F.col("Sender_bank_location")))==F.col("s.country_key"),"left")
-      .join(q,F.upper(F.trim(F.col("Receiver_bank_location")))==F.col("q.country_key"),"left"))
+ # Transaction locations are mostly country names plus UK/USA/UAE aliases, while
+ # the reference key is ISO-2. Build a governed normalization from the reference itself.
+ names=r.select(F.upper(F.trim(F.col("Country").cast("string"))).alias("raw_key"),
+                F.upper(F.trim(F.col(country).cast("string"))).alias("country_key"))
+ aliases=spark.createDataFrame([("UK","GB"),("USA","US"),("UAE","AE")],["raw_key","country_key"])
+ lookup=names.unionByName(aliases).dropDuplicates(["raw_key"])
+ sx=F.broadcast(lookup.alias("sl")); qx=F.broadcast(lookup.alias("ql"))
+ xn=(x.join(sx,F.upper(F.trim(F.col("Sender_bank_location")))==F.col("sl.raw_key"),"left")
+       .join(qx,F.upper(F.trim(F.col("Receiver_bank_location")))==F.col("ql.raw_key"),"left")
+       .withColumn("sender_iso",F.coalesce(F.col("sl.country_key"),F.upper(F.trim(F.col("Sender_bank_location")))))
+       .withColumn("receiver_iso",F.coalesce(F.col("ql.country_key"),F.upper(F.trim(F.col("Receiver_bank_location"))))))
+ s=F.broadcast(rr.alias("s")); q=F.broadcast(rr.alias("q"))
+ z=(xn.join(s,F.col("sender_iso")==F.col("s.country_key"),"left")
+      .join(q,F.col("receiver_iso")==F.col("q.country_key"),"left"))
  high=((F.col("s.risk_score")>=F.lit(risk_cut))|(F.col("q.risk_score")>=F.lit(risk_cut)))
  if sanction:
-  def truth(c): return F.lower(F.trim(c.cast("string"))).isin("1","true","yes","y","sanctioned","restricted")
+  def truth(c):
+   # The reference stores descriptive sanctions text, not a Boolean flag.
+   v=F.lower(F.trim(c.cast("string")))
+   return c.isNotNull() & (F.length(v)>0)
   sanctioned=(truth(F.col("s.sanctioned"))|truth(F.col("q.sanctioned")))
   out=z.select(F.col("development_row_id"),high.cast("int").alias("SCN_HIGH_RISK_GEOGRAPHY"),
                sanctioned.cast("int").alias("SCN_SANCTIONED_GEOGRAPHY"))
