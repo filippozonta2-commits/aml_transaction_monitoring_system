@@ -35,12 +35,14 @@ def main():
  z=(x.join(s,F.upper(F.trim(F.col("Sender_bank_location")))==F.col("s.country_key"),"left")
       .join(q,F.upper(F.trim(F.col("Receiver_bank_location")))==F.col("q.country_key"),"left"))
  high=((F.col("s.risk_score")>=F.lit(risk_cut))|(F.col("q.risk_score")>=F.lit(risk_cut)))
- out=z.select("development_row_id",high.cast("int").alias("SCN_HIGH_RISK_GEOGRAPHY"))
  if sanction:
   def truth(c): return F.lower(F.trim(c.cast("string"))).isin("1","true","yes","y","sanctioned","restricted")
-  out=out.withColumn("SCN_SANCTIONED_GEOGRAPHY",(truth(F.col("s.sanctioned"))|truth(F.col("q.sanctioned"))).cast("int"))
+  sanctioned=(truth(F.col("s.sanctioned"))|truth(F.col("q.sanctioned")))
+  out=z.select(F.col("development_row_id"),high.cast("int").alias("SCN_HIGH_RISK_GEOGRAPHY"),
+               sanctioned.cast("int").alias("SCN_SANCTIONED_GEOGRAPHY"))
  else:
-  out=out.withColumn("SCN_SANCTIONED_GEOGRAPHY",F.lit(0).cast("int"))
+  out=z.select(F.col("development_row_id"),high.cast("int").alias("SCN_HIGH_RISK_GEOGRAPHY"),
+               F.lit(0).cast("int").alias("SCN_SANCTIONED_GEOGRAPHY"))
  out.write.mode("overwrite").option("header",True).csv(str(Path(a.out)/"geo_flags"))
  print("High-risk geography triggers:",out.filter("SCN_HIGH_RISK_GEOGRAPHY=1").count())
  print("Sanctioned geography triggers:",out.filter("SCN_SANCTIONED_GEOGRAPHY=1").count())
