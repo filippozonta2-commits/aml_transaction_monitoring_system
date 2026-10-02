@@ -11,7 +11,24 @@ st.markdown("""<style>
 [data-testid="stMetricLabel"]{color:#94a3b8}
 [data-testid="stDataFrame"]{border:1px solid #1f2937;border-radius:10px}
 h1,h2,h3{letter-spacing:-.02em;color:#f8fafc}
-.stCaption{color:#94a3b8}
+.stCaption{color:#cbd5e1!important}
+
+/* Metric cards: Streamlit nests labels/values in several wrappers. */
+[data-testid="stMetric"] *{color:#f8fafc!important}
+[data-testid="stMetricLabel"],
+[data-testid="stMetricLabel"] *,
+[data-testid="stMetricDelta"],
+[data-testid="stMetricDelta"] *{color:#cbd5e1!important}
+[data-testid="stMetricValue"],
+[data-testid="stMetricValue"] *,
+div[data-testid="stMetricValue"]{color:#ffffff!important}
+
+/* General dark-theme readability */
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] span,
+[data-testid="stWidgetLabel"] *,
+[data-testid="stSidebar"] *{color:#e5edf7}
+
 </style>""",unsafe_allow_html=True)
 
 d=load_dashboard()
