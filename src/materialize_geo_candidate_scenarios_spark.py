@@ -25,6 +25,7 @@ def main():
  risk=pick(r.columns,["Overall Score","ML/TF Risk","risk_level","risk_rating","risk","country_risk"])
  sanction=pick(r.columns,["Sanction","sanctioned","sanctions","restricted","is_sanctioned"])
  if not country or not risk: raise ValueError(f"Country-risk schema unsupported: {r.columns}")
+ # Basel-style index: larger Overall Score means higher AML/CFT risk.
  risk_expr=F.col(risk).cast("double")
  rr=r.select(F.upper(F.trim(F.col(country).cast("string"))).alias("country_key"),
              risk_expr.alias("risk_score"),
@@ -42,9 +43,18 @@ def main():
        .join(qx,F.upper(F.trim(F.col("Receiver_bank_location")))==F.col("ql.raw_key"),"left")
        .withColumn("sender_iso",F.coalesce(F.col("sl.country_key"),F.upper(F.trim(F.col("Sender_bank_location")))))
        .withColumn("receiver_iso",F.coalesce(F.col("ql.country_key"),F.upper(F.trim(F.col("Receiver_bank_location"))))))
+ matched=xn.select("development_row_id","sender_iso","receiver_iso")
  s=F.broadcast(rr.alias("s")); q=F.broadcast(rr.alias("q"))
  z=(xn.join(s,F.col("sender_iso")==F.col("s.country_key"),"left")
       .join(q,F.col("receiver_iso")==F.col("q.country_key"),"left"))
+ # Diagnostics: distinguish normalization failure from genuinely no high-risk exposure.
+ cov=z.select(
+   F.avg(F.col("s.risk_score").isNotNull().cast("double")).alias("sender_risk_coverage"),
+   F.avg(F.col("q.risk_score").isNotNull().cast("double")).alias("receiver_risk_coverage"),
+   F.max("s.risk_score").alias("sender_max_risk"),F.max("q.risk_score").alias("receiver_max_risk")
+ ).first()
+ print(f"Risk-score coverage sender={cov.sender_risk_coverage:.2%} receiver={cov.receiver_risk_coverage:.2%}",flush=True)
+ print(f"Max transaction-country risk sender={cov.sender_max_risk} receiver={cov.receiver_max_risk}",flush=True)
  high=((F.col("s.risk_score")>=F.lit(risk_cut))|(F.col("q.risk_score")>=F.lit(risk_cut)))
  if sanction:
   def truth(c):
