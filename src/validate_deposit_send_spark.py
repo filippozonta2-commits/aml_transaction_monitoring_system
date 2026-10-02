@@ -85,7 +85,7 @@ def main():
         raise RuntimeError("Spark parsed all development timestamps as NULL; check Date/Time formats.")
     cutoff=sstart-pd.Timedelta(days=7)
     print(f"Spark development start: {sstart} | context cutoff: {cutoff}")
-    sevents=(strn.filter(F.col("ts")>=F.lit(cutoff.to_pydatetime()))
+    sevents=(strn.filter(F.col("ts")>=F.lit(cutoff))
              .unionByName(sdev)
              .select(F.col("Sender_account").alias("event_sender"),
                      F.col("Amount").alias("event_amount"),
