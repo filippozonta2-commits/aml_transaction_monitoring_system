@@ -11,8 +11,14 @@ import pandas as pd
 FLAGS=["SCN_SMURFING","SCN_CASH_WITHDRAWAL","SCN_FAN_OUT","SCN_STRUCTURING","SCN_FAN_IN","SCN_DEPOSIT_SEND"]
 
 def parse_ts(df):
-    date=pd.to_datetime(df["Date"],errors="coerce")
-    return pd.to_datetime(date.dt.strftime("%Y-%m-%d")+" "+df["Time"].astype(str).str.strip(),errors="coerce")
+    # Unified alert table inherits the already parsed timestamp from
+    # materialized_non_deposit_send.csv; Date/Time are intentionally absent.
+    if "ts" in df.columns:
+        return pd.to_datetime(df["ts"],errors="coerce")
+    if {"Date","Time"}.issubset(df.columns):
+        date=pd.to_datetime(df["Date"],errors="coerce")
+        return pd.to_datetime(date.dt.strftime("%Y-%m-%d")+" "+df["Time"].astype(str).str.strip(),errors="coerce")
+    raise KeyError(f"No timestamp source found. Available columns: {list(df.columns)}")
 
 def main():
     p=argparse.ArgumentParser()
