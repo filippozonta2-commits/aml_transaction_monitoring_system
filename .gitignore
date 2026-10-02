@@ -30,6 +30,7 @@ models/
 
 # Generated results
 results/eda/
+results/typology_eda/
 results/*.csv
 results/*.json
 results/figures/*.png
