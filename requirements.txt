@@ -6,3 +6,4 @@ matplotlib
 streamlit
 networkx
 pyspark>=3.5,<4
+pycountry>=24.6.1
