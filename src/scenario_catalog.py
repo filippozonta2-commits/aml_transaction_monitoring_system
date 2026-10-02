@@ -1,0 +1,9 @@
+"""Human-readable scenario catalogue for monitoring and investigation UI."""
+SCENARIO_CATALOG={
+"SCN_SMURFING":{"name":"Smurfing / Cash Deposits","entity":"Depositing account","direction":"CASH → ACCOUNT","pattern":"Repeated cash deposits below a typical single-deposit size, with meaningful aggregate activity.","network":"Cash channel activity; no synthetic account-to-account edge."},
+"SCN_CASH_WITHDRAWAL":{"name":"Cash Withdrawal","entity":"Withdrawing account","direction":"ACCOUNT → CASH","pattern":"Repeated low-value cash withdrawals with aggregate activity over the scenario window.","network":"Cash channel activity; no synthetic account-to-account edge."},
+"SCN_FAN_OUT":{"name":"Fan-Out","entity":"Sending account","direction":"SENDER → MANY RECEIVERS","pattern":"One sender distributes funds to multiple receiver accounts within the scenario window.","network":"Directed account network; useful for hub-and-spoke visualization."},
+"SCN_STRUCTURING":{"name":"Structuring","entity":"Receiving account","direction":"MANY SENDERS → RECEIVER","pattern":"Multiple senders fund one receiver through sub-threshold transactions with material aggregate value.","network":"Directed inbound network; useful for many-to-one visualization."},
+"SCN_FAN_IN":{"name":"Fan-In","entity":"Receiving account","direction":"MANY SENDERS → RECEIVER","pattern":"A receiver collects funds from several distinct senders in a bounded transaction/count window.","network":"Directed inbound account network."},
+"SCN_DEPOSIT_SEND":{"name":"Deposit & Send","entity":"Receiving then sending account","direction":"DEPOSIT → ACCOUNT → OUTFLOW","pattern":"Funds received by an account are followed by outgoing activity within the frozen 72-hour horizon.","network":"Temporal two-stage flow; requires forward-looking transaction context."},
+}
