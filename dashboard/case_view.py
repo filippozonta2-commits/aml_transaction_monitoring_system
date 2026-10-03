@@ -37,9 +37,18 @@ def _world_map(z):
     return fig
 
 def render(d):
-    q=d["queue"].copy(); alerts=d["alerts"]; ca=d["case_alert"]; at=d["alert_tx"]; net=d.get("network"); strategy=d.get("strategy","Scenario-based")\n    ml=d.get("ml_scores")\n    if ml is not None: q=q.merge(ml[["case_id","ml_probability","ml_score","ml_rank"]],on="case_id",how="left",validate="one_to_one")
+    q=d["queue"].copy()
+    alerts=d["alerts"]
+    ca=d["case_alert"]
+    at=d["alert_tx"]
+    net=d.get("network")
+    strategy=d.get("strategy","Scenario-based")
+    ml=d.get("ml_scores")
+    if ml is not None:
+        q=q.merge(ml[["case_id","ml_probability","ml_score","ml_rank"]],on="case_id",how="left",validate="one_to_one")
     st.header("Case Investigation")
-    order="ml_rank" if strategy=="Machine Learning" and "ml_rank" in q.columns else "queue_rank"\n    cid=st.selectbox("Select investigation case",q.sort_values(order).case_id.tolist())
+    order="ml_rank" if strategy=="Machine Learning" and "ml_rank" in q.columns else "queue_rank"
+    cid=st.selectbox("Select investigation case",q.sort_values(order).case_id.tolist())
     r=q[q.case_id.eq(cid)].iloc[0]
     st.markdown(f"### {cid}  ·  Subject {r.subject_id}")
     a,b,c,e,f=st.columns(5)
