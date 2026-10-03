@@ -3,101 +3,92 @@ import streamlit as st
 import networkx as nx
 import matplotlib.pyplot as plt
 import plotly.express as px
-import plotly.graph_objects as go
 import pycountry
-
-def _edges(z):
-    return (z.groupby(["holdout_row_id","Sender_account","Receiver_account"],dropna=False)
-             .agg(Amount=("Amount","first"),Payment_type=("Payment_type","first"),
-                  sender_iso2=("sender_iso2","first"),receiver_iso2=("receiver_iso2","first"),
-                  scenario=("scenario",lambda s:" | ".join(sorted(set(s.astype(str))))),
-                  ts=("ts","first"),cross_border=("cross_border","first"),
-                  flow_type=("flow_type","first"),network_eligible=("network_eligible","first"),
-                  semantic_direction=("semantic_direction","first")).reset_index())
 
 def _network(edges,account):
     G=nx.DiGraph()
     if "network_eligible" in edges.columns: edges=edges[edges.network_eligible.eq(1)]
     for _,x in edges.iterrows():
-        u=str(x.Sender_account); v=str(x.Receiver_account)
+        u=str(x["Sender_account"]); v=str(x["Receiver_account"])
         if G.has_edge(u,v): G[u][v]["count"]+=1
-        else: G.add_edge(u,v,count=1)
+        else:G.add_edge(u,v,count=1)
     fig,ax=plt.subplots(figsize=(11,6))
     pos=nx.spring_layout(G,seed=42,k=max(.5,2/(max(len(G),1)**.5)))
     nx.draw_networkx_nodes(G,pos,node_size=[1500 if n==str(account) else 430 for n in G],ax=ax)
-    # NetworkX/FancyArrowPatch points toward v, but the arrow head can visually
-    # overlap the node and look reversed. Shrink both ends so direction is explicit.
-    nx.draw_networkx_edges(
-        G,pos,
-        edgelist=list(G.edges()),
-        width=[.8+min(4,G[u][v]["count"]*.35) for u,v in G.edges],
-        arrows=True,arrowstyle="-|>",arrowsize=22,
-        connectionstyle="arc3,rad=0.04",
-        min_source_margin=18,min_target_margin=22,
-        alpha=.60,ax=ax
-    )
+    nx.draw_networkx_edges(G,pos,width=[.8+min(4,G[u][v]["count"]*.35) for u,v in G.edges],
+        arrows=True,arrowstyle="-|>",arrowsize=22,connectionstyle="arc3,rad=0.04",
+        min_source_margin=18,min_target_margin=22,alpha=.60,ax=ax)
     nx.draw_networkx_labels(G,pos,font_size=7,ax=ax); ax.axis("off"); return fig
 
 def _iso3(x):
     try:return pycountry.countries.get(alpha_2=str(x)).alpha_3
     except:return None
 
-def _world_map(edges):
-    s=edges.groupby("sender_iso2").agg(sent=("Amount","sum"),outgoing=("holdout_row_id","count"))
-    r=edges.groupby("receiver_iso2").agg(received=("Amount","sum"),incoming=("holdout_row_id","count"))
+def _world_map(z):
+    s=z.groupby("sender_iso2").agg(sent=("Amount","sum"),outgoing=("Amount","size"))
+    r=z.groupby("receiver_iso2").agg(received=("Amount","sum"),incoming=("Amount","size"))
     g=s.join(r,how="outer").fillna(0).reset_index().rename(columns={"index":"iso2","sender_iso2":"iso2","receiver_iso2":"iso2"})
     g["iso3"]=g.iso2.map(_iso3); g["total_amount"]=g.sent+g.received; g["transactions"]=g.outgoing+g.incoming
     fig=px.choropleth(g,locations="iso3",color="total_amount",hover_name="iso2",
-                      hover_data={"iso3":False,"sent":":,.0f","received":":,.0f","transactions":":,.0f"},
-                      projection="natural earth",labels={"total_amount":"Alerted amount"})
+        hover_data={"iso3":False,"sent":":,.0f","received":":,.0f","transactions":":,.0f"},
+        projection="natural earth",labels={"total_amount":"Case amount"})
     fig.update_geos(showcoastlines=True,showland=True,fitbounds="locations")
     fig.update_layout(height=500,margin=dict(l=0,r=0,t=10,b=0),coloraxis_colorbar_title="Amount")
-    return fig,g
+    return fig
 
 def render(d):
-    q=d["queue"]; lin=d["lineage"]; net=d.get("network")
+    q=d["queue"]; alerts=d["alerts"]; ca=d["case_alert"]; at=d["alert_tx"]; net=d.get("network")
     st.header("Case Investigation")
-    cid=st.selectbox("Select investigation case",q.CASE_ID.tolist())
-    r=q[q.CASE_ID.eq(cid)].iloc[0]
-    st.markdown(f"### {cid}  ·  Account {r.account_id}")
-    st.markdown("#### Detection — Scenario Engine")
-    st.caption("Why was this case created? Frozen rule-based scenarios generated the underlying transaction alerts.")
-    a,b,c,e=st.columns(4)
-    a.metric("Priority",f"#{int(r.priority_rank):,} · {r.priority_band}"); b.metric("ML risk score",f"{r.risk_score:.3f}")
-    c.metric("Alert events",f"{int(r.transaction_alerts):,}"); e.metric("Alerted amount",f"${r.total_alert_amount:,.0f}")
-    st.caption(f"Active scenarios: {r.scenario_list}")
-    st.markdown("#### Prioritization — Machine Learning")
-    st.caption("Why should this case be reviewed earlier? The frozen XGBoost model ranks cases after case creation; it does not generate alerts.")
-    a,b=st.columns(2); a.metric("Priority",f"#{int(r.priority_rank):,} · {r.priority_band}"); b.metric("ML risk score",f"{r.risk_score:.3f}")
-    if net is None:
-        st.info("Run python src/build_case_network_data.py once."); return
-    z=net[net.CASE_ID.eq(cid)].copy()
-    if not len(z): st.info("No transaction edges found for this case."); return
-    edges=_edges(z)
-    tabs=st.tabs(["Overview","Transactions","Network","Geography"])
+    cid=st.selectbox("Select investigation case",q.sort_values("queue_rank").case_id.tolist())
+    r=q[q.case_id.eq(cid)].iloc[0]
+    st.markdown(f"### {cid}  ·  Subject {r.subject_id}")
+    a,b,c,e,f=st.columns(5)
+    a.metric("Queue rank",f"#{int(r.queue_rank):,}"); b.metric("Priority",r.queue_priority)
+    c.metric("Risk score",f"{int(r.risk_score)}"); e.metric("Alerts",f"{int(r.alert_count):,}")
+    f.metric("Transactions",f"{int(r.transaction_count):,}")
+    st.caption(f"Scenarios: {r.scenarios}")
+    st.caption(f"Policy-linked: {bool(r.policy_flag)} · {r.priority_reason}")
+
+    ids=ca.loc[ca.case_id.eq(cid),"alert_id"]
+    ad=alerts[alerts.alert_id.isin(ids)].copy()
+    tx=at[at.alert_id.isin(ids)].copy()
+    tabs=st.tabs(["Overview","Alerts","Transaction Evidence","Network","Geography"])
     with tabs[0]:
-        ev=lin[lin.CASE_ID.eq(cid)].copy(); ev["ts"]=pd.to_datetime(ev.ts)
-        m1,m2,m3=st.columns(3)
-        nodes=set(edges.Sender_account.astype(str))|set(edges.Receiver_account.astype(str))
-        m1.metric("Counterparties",max(0,len(nodes)-1)); m2.metric("Cross-border",int(edges.cross_border.sum()))
-        m3.metric("Countries",len(set(edges.sender_iso2.dropna())|set(edges.receiver_iso2.dropna())))
-        st.subheader("Alert timeline"); st.scatter_chart(ev,x="ts",y="holdout_row_id",color="scenario")
+        m1,m2,m3,m4=st.columns(4)
+        m1.metric("Scenario count",int(r.scenario_count)); m2.metric("Aggregated alerts",len(ad))
+        m3.metric("Evidence links",len(tx)); m4.metric("Policy flag","YES" if bool(r.policy_flag) else "NO")
+        if len(ad):
+            timeline=ad.copy(); timeline["alert_created_at"]=pd.to_datetime(timeline["alert_created_at"],errors="coerce")
+            chart=timeline.groupby([timeline.alert_created_at.dt.date,"scenario_id"]).size().reset_index(name="alerts")
+            chart["date"]=pd.to_datetime(chart["alert_created_at"])
+            st.subheader("Alert timeline"); st.line_chart(chart,x="date",y="alerts",color="scenario_id")
+        st.subheader("Why this case is prioritized")
+        st.write(r.priority_reason)
     with tabs[1]:
-        show=edges.sort_values("ts").copy()
-        st.dataframe(show,width="stretch",hide_index=True)
-        st.caption("Cash Withdrawal and Cash Deposit preserve raw sender/receiver fields for audit, but are explicitly marked as cash flows and excluded from account-to-account network edges.")
+        cols=[x for x in ["alert_id","scenario_id","primary_account_id","alert_created_at","last_trigger_at","transaction_count","alert_amount","policy_flag","trigger_reason"] if x in ad.columns]
+        st.dataframe(ad[cols].sort_values("alert_created_at"),width="stretch",hide_index=True)
     with tabs[2]:
-        st.pyplot(_network(edges,r.account_id),width="stretch")
-        st.caption("Account-transfer edges use Sender → Receiver. Cash withdrawals/deposits are excluded from account-to-account edges because their raw receiver/sender fields are not treated as economic counterparties.")
+        st.dataframe(tx.sort_values(["alert_id","linked_at"]) if "linked_at" in tx.columns else tx,width="stretch",hide_index=True)
+
+    z=None
+    if net is not None:
+        case_col="case_id" if "case_id" in net.columns else ("CASE_ID" if "CASE_ID" in net.columns else None)
+        if case_col:z=net[net[case_col].astype(str).eq(str(cid))].copy()
     with tabs[3]:
-        fig,g=_world_map(edges)
-        st.plotly_chart(fig,width="stretch")
-        st.caption("Country exposure for this investigation case. Hover over a country for sent/received alerted amounts and transaction volume.")
-        cb=edges[edges.cross_border.eq(1)]
-        if len(cb):
-            routes=(cb.groupby(["sender_iso2","receiver_iso2"]).agg(transactions=("holdout_row_id","count"),amount=("Amount","sum"))
-                    .reset_index().sort_values("amount",ascending=False))
-            routes["route"]=routes.sender_iso2+" → "+routes.receiver_iso2
-            st.subheader("Cross-border routes")
-            st.dataframe(routes[["route","transactions","amount"]],width="stretch",hide_index=True)
-    st.caption("The frozen ML score prioritizes human review; it is not an AML determination.")
+        if z is None or not len(z):
+            st.info("The current network mart is legacy or has no rows for this V1 case. Rebuild it against the V3/V1 case lineage before using this view.")
+        elif {"Sender_account","Receiver_account"}.issubset(z.columns):
+            st.pyplot(_network(z,r.subject_id),width="stretch")
+            st.caption("Sender → Receiver account network. Cash flows are excluded when network_eligible=0.")
+    with tabs[4]:
+        if z is None or not len(z) or not {"sender_iso2","receiver_iso2","Amount"}.issubset(z.columns):
+            st.info("Geography requires the V3/V1 case network mart.")
+        else:
+            st.plotly_chart(_world_map(z),width="stretch")
+            if "cross_border" in z.columns:
+                cb=z[z.cross_border.eq(1)]
+                if len(cb):
+                    routes=cb.groupby(["sender_iso2","receiver_iso2"]).agg(transactions=("Amount","size"),amount=("Amount","sum")).reset_index().sort_values("amount",ascending=False)
+                    routes["route"]=routes.sender_iso2+" → "+routes.receiver_iso2
+                    st.subheader("Cross-border routes"); st.dataframe(routes[["route","transactions","amount"]],width="stretch",hide_index=True)
+    st.caption("Operational priority supports investigator workflow; it is not an AML determination.")
