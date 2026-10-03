@@ -50,7 +50,8 @@ def main():
     ap.add_argument("--train",type=Path,default=Path("data/temporal/SAML-D_train.csv"))
     ap.add_argument("--development",type=Path,default=Path("data/temporal/SAML-D_development.csv"))
     ap.add_argument("--country-risk",type=Path,default=Path("data/country_risk.csv"))
-    ap.add_argument("--out",type=Path,default=Path("results/ml_detection/development"))\n    ap.add_argument("--train-sample",type=int,default=400000,help="Maximum TRAIN rows used for model fitting; all AML positives are retained.")
+    ap.add_argument("--out",type=Path,default=Path("results/ml_detection/development"))
+    ap.add_argument("--train-sample",type=int,default=400000,help="Maximum TRAIN rows used for model fitting; all AML positives are retained.")
     a=ap.parse_args()
     print("Loading TRAIN and DEVELOPMENT only...")
     tr=pd.read_csv(a.train); dv=pd.read_csv(a.development); risk=pd.read_csv(a.country_risk)
@@ -85,8 +86,11 @@ def main():
     a.out.mkdir(parents=True,exist_ok=True); perf.to_csv(a.out/"model_benchmark.csv",index=False); work.to_csv(a.out/"workload_benchmark.csv",index=False)
     pd.DataFrame({"development_row_id":dv.index,"Is_laundering":ydv,**{k:v for k,v in probabilities.items()}}).to_csv(a.out/"development_scores.csv",index=False)
     with open(a.out/"feature_contract.json","w") as f: json.dump({"features":feats,"holdout_accessed":False,"historical_features":"prior-only; TRAIN history available to DEVELOPMENT"},f,indent=2)
-    print("\n=== ML DETECTION BENCHMARK — DEVELOPMENT ONLY ==="); print(perf.to_string(index=False))
-    print("\n=== WORKLOAD / RECALL TRADE-OFF ==="); print(work.to_string(index=False))
-    print("\nNo HOLDOUT accessed. Do not run ML HOLDOUT scoring until model + threshold are frozen.")
+    print("
+=== ML DETECTION BENCHMARK — DEVELOPMENT ONLY ==="); print(perf.to_string(index=False))
+    print("
+=== WORKLOAD / RECALL TRADE-OFF ==="); print(work.to_string(index=False))
+    print("
+No HOLDOUT accessed. Do not run ML HOLDOUT scoring until model + threshold are frozen.")
     print("Saved:",a.out)
 if __name__=="__main__":main()
