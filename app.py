@@ -1,6 +1,6 @@
 import streamlit as st
 from dashboard.data import load_dashboard
-from dashboard import overview,queue,case_view,scenario_lab,lineage_view
+from dashboard import overview,queue,case_view,scenario_lab,lineage_view,model_comparison
 
 st.set_page_config(page_title="AML Investigation Console",page_icon="🔎",layout="wide")
 st.markdown("""<style>
@@ -33,18 +33,18 @@ div[data-testid="stMetricValue"]{color:#ffffff!important}
 
 d=load_dashboard()
 st.title("AML Investigation Console")
-st.caption("Scenario Detection  →  Case Management  →  Prioritization  →  Human Investigation")
+st.caption("Detection Strategy  →  Alert Generation  →  Case Management  →  Human Investigation")
 st.sidebar.markdown("### Investigation strategy")
 strategy=st.sidebar.radio("Prioritization approach",["Scenario-based","Machine Learning"],horizontal=False,
-    help="Detection remains Frozen V3 in both modes. This selection changes downstream case ranking only.")
+    help="Compare the frozen Scenario-Based V3 detector with the frozen transaction-level ML Detection V1 engine.")
 d["strategy"]=strategy
 if strategy=="Machine Learning" and d.get("ml_scores") is None:
     st.sidebar.warning("ML scores not built yet. Run the ML feature + scoring pipeline.")
 else:
     st.sidebar.caption("Frozen V3 detection · "+("transparent operational score" if strategy=="Scenario-based" else "frozen DEVELOPMENT-trained XGBoost ranking"))
-page=st.sidebar.radio("Workspace",["Monitoring Overview","Scenario Monitoring","Investigator Queue","Case Investigation","ML Analytics","Simulation Lab","Governance & Lineage"])
+page=st.sidebar.radio("Workspace",["Monitoring Overview","Model Comparison","Scenario Monitoring","Investigator Queue","Case Investigation","ML Analytics","Simulation Lab","Governance & Lineage"])
 
-if page=="Monitoring Overview": overview.render(d)
+if page=="Monitoring Overview": overview.render(d)\nelif page=="Model Comparison": model_comparison.render(d)
 elif page=="Scenario Monitoring": scenario_lab.render(d,"monitor")
 elif page=="Investigator Queue": queue.render(d)
 elif page=="Case Investigation": case_view.render(d)
