@@ -3,36 +3,35 @@ import streamlit as st
 
 def render(d,mode="lineage"):
     if mode=="ml":
-        st.header("ML Prioritization Analytics")
-        st.caption("Frozen DEVELOPMENT-selected XGBoost · alternative downstream ranking of the same V3/V1 cases")
-        ml=d.get("ml_scores"); imp=d.get("ml_importance")
+        st.header("ML Detection Analytics")
+        st.caption("Frozen transaction-level XGBoost Detection V1 · independent alternative to Rule-Based V3")
+        ml=d.get("ml_detection"); ops=d.get("ml_dev_ops"); ov=d.get("overlap")
         if ml is None:
-            st.warning("ML outputs are not built yet. Run build_ml_case_features_v3.py and score_frozen_ml_case_model_v3.py.")
+            st.warning("Frozen ML detector output is unavailable.")
             return
-        q=d["queue"].merge(ml,on=["case_id","subject_id"],how="inner",validate="one_to_one")
-        a,b,c,e=st.columns(4)
-        a.metric("Cases scored",f"{len(q):,}"); b.metric("Model","XGBoost"); c.metric("Training","DEVELOPMENT"); e.metric("HOLDOUT labels","NOT USED")
-        st.info("Frozen V3 still generates the alerts. ML only changes which existing cases an investigator sees first.")
-        q["rank_shift"]=q["queue_rank"]-q["ml_rank"]
-        q["abs_rank_shift"]=q.rank_shift.abs()
+        n=len(ml); alerts=int(ml.ML_ALERT_V1.sum()); positives=int(ml.Is_laundering.sum())
+        hits=int(ml.loc[ml.ML_ALERT_V1.eq(1),"Is_laundering"].sum())
+        a,b,c1,e=st.columns(4)
+        a.metric("Threshold","0.653366"); b.metric("HOLDOUT alerts",f"{alerts:,}")
+        c1.metric("Precision",f"{hits/alerts:.2%}"); e.metric("Recall",f"{hits/positives:.2%}")
         left,right=st.columns(2)
         with left:
-            st.subheader("ML score distribution")
-            bins=(q.ml_score//5*5).astype(int).astype(str)+"–"+((q.ml_score//5*5)+5).astype(int).astype(str)
-            dist=bins.value_counts().rename_axis("ML score").reset_index(name="cases").sort_values("ML score")
-            st.bar_chart(dist,x="ML score",y="cases")
+            st.subheader("Probability distribution")
+            z=ml.copy(); z["score_band"]=(z.ml_probability*10).astype(int).clip(0,9)
+            dist=z.score_band.value_counts().sort_index()
+            dist.index=[f"{i/10:.1f}–{(i+1)/10:.1f}" for i in dist.index]
+            st.bar_chart(dist)
         with right:
-            st.subheader("Scenario rank vs ML rank")
-            st.scatter_chart(q,x="queue_rank",y="ml_rank",size="alert_count")
-        st.subheader("Largest ranking changes")
-        show=q.sort_values("abs_rank_shift",ascending=False)[["case_id","subject_id","queue_rank","ml_rank","rank_shift","risk_score","ml_score","queue_priority","scenario_count","alert_count","transaction_count","scenarios"]]
-        st.dataframe(show.head(100),width="stretch",hide_index=True)
-        if imp is not None and len(imp):
-            st.subheader("Global XGBoost feature importance")
-            st.bar_chart(imp.head(15).sort_values("importance").set_index("feature")["importance"],horizontal=True)
+            st.subheader("DEVELOPMENT operating points")
+            if ops is not None:
+                show=ops[["alert_rate","alerts","precision","recall","threshold"]].copy()
+                st.dataframe(show,width="stretch",hide_index=True)
+        if ov is not None:
+            st.subheader("Frozen ML V1 vs Rule V3 AML overlap")
+            st.bar_chart(ov.set_index("group")["aml_positives"])
         st.subheader("Model governance")
-        st.markdown("**Frozen model:** XGBoost · **Training:** DEVELOPMENT only · **Role:** ranking/prioritization, not detection or AML determination.")
-        st.caption("Account-purged DEVELOPMENT validation reference: ROC-AUC 0.9048 · PR-AUC 0.4410 · Precision@250 34.8% · Recall@250 54.4%.")
+        st.markdown("**Model:** XGBoost · **Training:** full TRAIN · **model/threshold selection:** DEVELOPMENT · **threshold:** 0.653366 · **HOLDOUT:** evaluation only.")
+        st.info("ML V1 is a transaction-level detection engine. It is not the older case-prioritization model.")
         return
     st.header("Governance & Lineage"); st.caption("Frozen V3 detection → V1 case workflow → selectable prioritization")
     st.graphviz_chart("""digraph {
