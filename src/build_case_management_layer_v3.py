@@ -23,6 +23,7 @@ def main():
     p.add_argument("--alerts",default="results/case_management_v3/alert.csv")
     p.add_argument("--bridge",default="results/case_management_v3/alert_transaction.csv")
     p.add_argument("--outdir",default="results/case_management_v3")
+    p.add_argument("--window-days",type=int,default=30)
     a=p.parse_args()
 
     alerts=pd.read_csv(a.alerts)
@@ -37,12 +38,12 @@ def main():
 
     x=alerts.sort_values(["primary_account_id","alert_created_at","alert_id"]).copy()
     prev=x.groupby("primary_account_id")["alert_created_at"].shift()
-    new_case=prev.isna() | ((x["alert_created_at"]-prev).dt.total_seconds() > WINDOW_DAYS*86400)
+    new_case=prev.isna() | ((x["alert_created_at"]-prev).dt.total_seconds() > a.window_days*86400)
     x["_case_seq"]=new_case.groupby(x["primary_account_id"]).cumsum().astype(int)
     x["case_id"]=[stable_case_id(s,q) for s,q in zip(x["primary_account_id"],x["_case_seq"])]
 
     case_alert=x[["case_id","alert_id"]].copy()
-    case_alert["link_reason"]="SAME_ACCOUNT_30D_SESSION"
+    case_alert["link_reason"]=f"SAME_ACCOUNT_{a.window_days}D_SESSION"
     case_alert["linked_by"]="SYSTEM"
     case_alert["linked_at"]=x["alert_created_at"].to_numpy()
     case_alert["active_flag"]=True
@@ -103,7 +104,7 @@ def main():
 
     summary={
         "portfolio_version":"V3",
-        "grouping_rule":f"same primary account; new case after >{WINDOW_DAYS}-day gap from previous alert",
+        "grouping_rule":f"same primary account; new case after >{a.window_days}-day gap from previous alert",
         "alerts":int(len(alerts)),
         "cases":int(len(cases)),
         "compression_ratio_alerts_per_case":float(len(alerts)/len(cases)),
