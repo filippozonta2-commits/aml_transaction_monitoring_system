@@ -54,7 +54,9 @@ def render(d):
     a,b,c,e,f=st.columns(5)
     a.metric("Queue rank",f"#{int(r.ml_rank):,}" if strategy=="Machine Learning" and pd.notna(r.get("ml_rank")) else f"#{int(r.queue_rank):,}"); b.metric("Priority",r.queue_priority)
     c.metric("Risk score",f"{int(r.risk_score)}"); e.metric("Alerts",f"{int(r.alert_count):,}")
-    f.metric("Transactions",f"{int(r.transaction_count):,}")\n    if "ml_rank" in q.columns and pd.notna(r.get("ml_rank")):\n        x1,x2,x3=st.columns(3); x1.metric("Scenario rank",f"#{int(r.queue_rank):,}"); x2.metric("ML rank",f"#{int(r.ml_rank):,}",delta=f"{int(r.queue_rank-r.ml_rank):+,} positions"); x3.metric("ML score",f"{float(r.ml_score):.1f}")
+    f.metric("Transactions",f"{int(r.transaction_count):,}")
+    if "ml_rank" in q.columns and pd.notna(r.get("ml_rank")):
+        x1,x2,x3=st.columns(3); x1.metric("Scenario rank",f"#{int(r.queue_rank):,}"); x2.metric("ML rank",f"#{int(r.ml_rank):,}",delta=f"{int(r.queue_rank-r.ml_rank):+,} positions"); x3.metric("ML score",f"{float(r.ml_score):.1f}")
     st.caption(f"Scenarios: {r.scenarios}")
     st.caption(f"Policy-linked: {bool(r.policy_flag)} · {r.priority_reason}")
 
