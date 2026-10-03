@@ -1,6 +1,13 @@
 import streamlit as st
 def render(d):
-    q=d["queue"].copy(); strategy=d.get("strategy","Scenario-based"); st.header("Prioritized Investigator Queue")\n    if strategy=="Machine Learning" and d.get("ml_scores") is not None:\n        q=q.merge(d["ml_scores"][["case_id","ml_probability","ml_score","ml_rank"]],on="case_id",how="left").sort_values("ml_rank")\n        st.caption("Frozen DEVELOPMENT-trained XGBoost ranking; detection and evidence remain Frozen V3.")\n    else:\n        q=q.sort_values("queue_rank")
+    q=d["queue"].copy()
+    strategy=d.get("strategy","Scenario-based")
+    st.header("Prioritized Investigator Queue")
+    if strategy=="Machine Learning" and d.get("ml_scores") is not None:
+        q=q.merge(d["ml_scores"][["case_id","ml_probability","ml_score","ml_rank"]],on="case_id",how="left").sort_values("ml_rank")
+        st.caption("Frozen DEVELOPMENT-trained XGBoost ranking; detection and evidence remain Frozen V3.")
+    else:
+        q=q.sort_values("queue_rank")
     st.caption("Transparent rule-based Operational Layer V1 prioritization · no AML labels used")
     a,b,c,e=st.columns(4)
     bands=a.multiselect("Priority",["HIGH","MEDIUM","LOW"],default=["HIGH","MEDIUM"])
