@@ -44,7 +44,8 @@ else:
     st.sidebar.caption("Frozen V3 detection · "+("transparent operational score" if strategy=="Scenario-based" else "frozen DEVELOPMENT-trained XGBoost ranking"))
 page=st.sidebar.radio("Workspace",["Monitoring Overview","Model Comparison","Scenario Monitoring","Investigator Queue","Case Investigation","ML Analytics","Simulation Lab","Governance & Lineage"])
 
-if page=="Monitoring Overview": overview.render(d)\nelif page=="Model Comparison": model_comparison.render(d)
+if page=="Monitoring Overview": overview.render(d)
+elif page=="Model Comparison": model_comparison.render(d)
 elif page=="Scenario Monitoring": scenario_lab.render(d,"monitor")
 elif page=="Investigator Queue": queue.render(d)
 elif page=="Case Investigation": case_view.render(d)
