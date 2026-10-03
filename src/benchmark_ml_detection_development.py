@@ -50,17 +50,29 @@ def main():
     ap.add_argument("--train",type=Path,default=Path("data/temporal/SAML-D_train.csv"))
     ap.add_argument("--development",type=Path,default=Path("data/temporal/SAML-D_development.csv"))
     ap.add_argument("--country-risk",type=Path,default=Path("data/country_risk.csv"))
-    ap.add_argument("--out",type=Path,default=Path("results/ml_detection/development"))
+    ap.add_argument("--out",type=Path,default=Path("results/ml_detection/development"))\n    ap.add_argument("--train-sample",type=int,default=400000,help="Maximum TRAIN rows used for model fitting; all AML positives are retained.")
     a=ap.parse_args()
     print("Loading TRAIN and DEVELOPMENT only...")
     tr=pd.read_csv(a.train); dv=pd.read_csv(a.development); risk=pd.read_csv(a.country_risk)
     tr,dv=prep(tr,dv,risk)
-    feats=CATEGORICAL_FEATURES+NUMERICAL_FEATURES; Xtr=tr[feats]; ytr=tr[TARGET].astype(int); Xdv=dv[feats]; ydv=dv[TARGET].astype(int)
+    feats=CATEGORICAL_FEATURES+NUMERICAL_FEATURES
+    # Fast model-selection sample: keep every positive and reproducibly sample negatives.
+    # Historical features were already built using the complete TRAIN+DEVELOPMENT chronology.
+    if a.train_sample and len(tr)>a.train_sample:
+        pos=tr[tr[TARGET].eq(1)]
+        neg=tr[tr[TARGET].eq(0)]
+        nneg=max(a.train_sample-len(pos),0)
+        neg=neg.sample(n=min(nneg,len(neg)),random_state=42)
+        tr_fit=pd.concat([pos,neg],ignore_index=True).sample(frac=1,random_state=42).reset_index(drop=True)
+    else:
+        tr_fit=tr
+    Xtr=tr_fit[feats]; ytr=tr_fit[TARGET].astype(int); Xdv=dv[feats]; ydv=dv[TARGET].astype(int)
+    print(f"Model-fit sample: {len(tr_fit):,}/{len(tr):,} TRAIN rows | positives retained: {int(ytr.sum()):,}")
     w=max((ytr.eq(0).sum()/max(ytr.eq(1).sum(),1)),1.0)
     models={
       "Logistic Regression":LogisticRegression(max_iter=500,class_weight="balanced",solver="liblinear",random_state=42),
-      "Random Forest":RandomForestClassifier(n_estimators=150,max_depth=12,min_samples_leaf=40,class_weight="balanced",n_jobs=-1,random_state=42),
-      "XGBoost":XGBClassifier(n_estimators=200,max_depth=6,learning_rate=.08,subsample=.8,colsample_bytree=.8,scale_pos_weight=w,n_jobs=-1,random_state=42,eval_metric="aucpr")
+      "Random Forest":RandomForestClassifier(n_estimators=80,max_depth=10,min_samples_leaf=40,class_weight="balanced",n_jobs=-1,random_state=42),
+      "XGBoost":XGBClassifier(n_estimators=120,max_depth=5,learning_rate=.10,subsample=.8,colsample_bytree=.8,tree_method="hist",scale_pos_weight=w,n_jobs=-1,random_state=42,eval_metric="aucpr")
     }
     perf=[]; workloads=[]; probabilities={}
     for name,clf in models.items():
