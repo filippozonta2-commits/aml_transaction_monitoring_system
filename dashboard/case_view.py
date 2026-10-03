@@ -52,6 +52,15 @@ def render(d):
     ids=ca.loc[ca.case_id.eq(cid),"alert_id"]
     ad=alerts[alerts.alert_id.isin(ids)].copy()
     tx=at[at.alert_id.isin(ids)].copy()
+
+    # Resolve case network/context before rendering any tab because
+    # Transaction Evidence also uses ISO2 fields from this mart.
+    z=None
+    if net is not None:
+        case_col="case_id" if "case_id" in net.columns else ("CASE_ID" if "CASE_ID" in net.columns else None)
+        if case_col:
+            z=net[net[case_col].astype(str).eq(str(cid))].copy()
+
     tabs=st.tabs(["Overview","Alerts","Transaction Evidence","Network","Geography"])
     with tabs[0]:
         m1,m2,m3,m4=st.columns(4)
@@ -77,10 +86,6 @@ def render(d):
         evidence=evidence[preferred+rest]
         st.dataframe(evidence.sort_values(["alert_id","linked_at"]) if "linked_at" in evidence.columns else evidence,width="stretch",hide_index=True)
 
-    z=None
-    if net is not None:
-        case_col="case_id" if "case_id" in net.columns else ("CASE_ID" if "CASE_ID" in net.columns else None)
-        if case_col:z=net[net[case_col].astype(str).eq(str(cid))].copy()
     with tabs[3]:
         if z is None or not len(z):
             st.info("The current network mart is legacy or has no rows for this V1 case. Rebuild it against the V3/V1 case lineage before using this view.")
