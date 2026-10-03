@@ -72,7 +72,9 @@ with a:
 with b:
  st.caption("Risk score distribution")
  bins=pd.cut(f.risk_score,bins=list(range(0,105,5)),include_lowest=True)
- st.bar_chart(bins.value_counts().sort_index())
+ score_hist=bins.value_counts().sort_index().rename_axis("score_band").reset_index(name="cases")
+ score_hist["score_band"]=score_hist["score_band"].astype(str)
+ st.bar_chart(score_hist,x="score_band",y="cases")
 
 st.divider()
 st.subheader("Case drill-down")
@@ -105,6 +107,54 @@ tx=at[at.alert_id.isin(case_alert_ids)].copy()
 st.markdown("#### Transaction evidence")
 st.caption("Canonical ALERT_TRANSACTION evidence links. The dashboard does not infer AML outcomes.")
 st.dataframe(tx.sort_values(["alert_id","linked_at"]),use_container_width=True,hide_index=True)
+
+# Rich investigation views reuse the existing network mart from the earlier dashboard.
+network_path=Path("results/dashboard/case_transaction_network.csv")
+if network_path.exists():
+ net=pd.read_csv(network_path)
+ case_col="CASE_ID" if "CASE_ID" in net.columns else "case_id"
+ nz=net[net[case_col].astype(str).eq(str(selected))].copy()
+ if len(nz):
+  st.markdown("#### Investigation network & geography")
+  tab_net,tab_geo=st.tabs(["Network","Geography"])
+  with tab_net:
+   try:
+    import networkx as nx
+    import matplotlib.pyplot as plt
+    e=nz[nz["network_eligible"].eq(1)] if "network_eligible" in nz.columns else nz
+    G=nx.DiGraph()
+    for _,x in e.iterrows():
+     u=str(x["Sender_account"]); v=str(x["Receiver_account"])
+     if G.has_edge(u,v): G[u][v]["count"]+=1
+     else: G.add_edge(u,v,count=1)
+    fig,ax=plt.subplots(figsize=(11,6))
+    pos=nx.spring_layout(G,seed=42,k=max(.5,2/(max(len(G),1)**.5)))
+    subject=str(case.subject_id)
+    nx.draw_networkx_nodes(G,pos,node_size=[1500 if n==subject else 430 for n in G],ax=ax)
+    nx.draw_networkx_edges(G,pos,arrows=True,arrowstyle="-|>",arrowsize=22,min_source_margin=18,min_target_margin=22,alpha=.60,ax=ax)
+    nx.draw_networkx_labels(G,pos,font_size=7,ax=ax); ax.axis("off")
+    st.pyplot(fig,use_container_width=True)
+    st.caption("Account-transfer network. Cash flows are excluded where network_eligible=0.")
+   except Exception as ex: st.info(f"Network view unavailable: {ex}")
+  with tab_geo:
+   try:
+    import plotly.express as px
+    import pycountry
+    def iso3(x):
+     try:return pycountry.countries.get(alpha_2=str(x)).alpha_3
+     except:return None
+    if {"sender_iso2","receiver_iso2","Amount"}.issubset(nz.columns):
+     s=nz.groupby("sender_iso2").agg(sent=("Amount","sum"),outgoing=("Amount","size"))
+     r=nz.groupby("receiver_iso2").agg(received=("Amount","sum"),incoming=("Amount","size"))
+     g=s.join(r,how="outer").fillna(0).reset_index().rename(columns={"index":"iso2","sender_iso2":"iso2","receiver_iso2":"iso2"})
+     g["iso3"]=g.iso2.map(iso3); g["total_amount"]=g.sent+g.received; g["transactions"]=g.outgoing+g.incoming
+     fig=px.choropleth(g,locations="iso3",color="total_amount",hover_name="iso2",hover_data={"iso3":False,"sent":":,.0f","received":":,.0f","transactions":":,.0f"},projection="natural earth",labels={"total_amount":"Amount"})
+     fig.update_geos(showcoastlines=True,showland=True,fitbounds="locations"); fig.update_layout(height=500,margin=dict(l=0,r=0,t=10,b=0))
+     st.plotly_chart(fig,use_container_width=True)
+    else: st.info("Geography columns are not present in the network mart.")
+   except Exception as ex: st.info(f"Geography view unavailable: {ex}")
+else:
+ st.info("Network/map views: run python src/build_case_network_data.py to materialize the existing case network mart.")
 
 with st.expander("Governance / lineage"):
  st.write("Detection portfolio: **Frozen V3**")
