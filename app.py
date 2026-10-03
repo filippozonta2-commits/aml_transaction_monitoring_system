@@ -42,7 +42,11 @@ if strategy=="Machine Learning" and d.get("ml_scores") is None:
     st.sidebar.warning("ML scores not built yet. Run the ML feature + scoring pipeline.")
 else:
     st.sidebar.caption("Frozen V3 detection · "+("transparent operational score" if strategy=="Scenario-based" else "frozen DEVELOPMENT-trained XGBoost ranking"))
-page=st.sidebar.radio("Workspace",["Monitoring Overview","Model Comparison","Scenario Monitoring","Investigator Queue","Case Investigation","ML Analytics","Simulation Lab","Governance & Lineage"])
+if strategy=="Scenario-based":
+    pages=["Monitoring Overview","Model Comparison","Scenario Monitoring","Investigator Queue","Case Investigation","Simulation Lab","Governance & Lineage"]
+else:
+    pages=["Monitoring Overview","Model Comparison","ML Analytics","Governance & Lineage"]
+page=st.sidebar.radio("Workspace",pages)
 
 if page=="Monitoring Overview": overview.render(d)
 elif page=="Model Comparison": model_comparison.render(d)
