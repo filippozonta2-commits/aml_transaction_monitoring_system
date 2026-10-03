@@ -68,7 +68,14 @@ def render(d):
         cols=[x for x in ["alert_id","scenario_id","primary_account_id","alert_created_at","last_trigger_at","transaction_count","alert_amount","policy_flag","trigger_reason"] if x in ad.columns]
         st.dataframe(ad[cols].sort_values("alert_created_at"),width="stretch",hide_index=True)
     with tabs[2]:
-        st.dataframe(tx.sort_values(["alert_id","linked_at"]) if "linked_at" in tx.columns else tx,width="stretch",hide_index=True)
+        evidence=tx.copy()
+        if z is not None and len(z) and "transaction_id" in z.columns:
+            geo_cols=[x for x in ["transaction_id","sender_iso2","receiver_iso2","Sender_bank_location","Receiver_bank_location"] if x in z.columns]
+            evidence=evidence.merge(z[geo_cols].drop_duplicates("transaction_id"),on="transaction_id",how="left")
+        preferred=[x for x in ["alert_id","transaction_id","scenario_id","transaction_timestamp","sender_iso2","receiver_iso2","Sender_bank_location","Receiver_bank_location","contribution_role","trigger_value","linked_at"] if x in evidence.columns]
+        rest=[x for x in evidence.columns if x not in preferred]
+        evidence=evidence[preferred+rest]
+        st.dataframe(evidence.sort_values(["alert_id","linked_at"]) if "linked_at" in evidence.columns else evidence,width="stretch",hide_index=True)
 
     z=None
     if net is not None:
@@ -90,5 +97,8 @@ def render(d):
                 if len(cb):
                     routes=cb.groupby(["sender_iso2","receiver_iso2"]).agg(transactions=("Amount","size"),amount=("Amount","sum")).reset_index().sort_values("amount",ascending=False)
                     routes["route"]=routes.sender_iso2+" → "+routes.receiver_iso2
-                    st.subheader("Cross-border routes"); st.dataframe(routes[["route","transactions","amount"]],width="stretch",hide_index=True)
+                    st.subheader("Cross-border routes"); st.dataframe(routes[["sender_iso2","receiver_iso2","route","transactions","amount"]],width="stretch",hide_index=True)
+            st.subheader("Geographic transaction detail")
+            geo_detail=z[[x for x in ["transaction_id","sender_iso2","receiver_iso2","Sender_bank_location","Receiver_bank_location","Amount","scenario","is_alerted_transaction"] if x in z.columns]].copy()
+            st.dataframe(geo_detail,width="stretch",hide_index=True)
     st.caption("Operational priority supports investigator workflow; it is not an AML determination.")
