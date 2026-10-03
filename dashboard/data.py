@@ -4,7 +4,7 @@ import streamlit as st
 R=Path("results"); CM=R/"case_management_v3"
 @st.cache_data
 def load_dashboard():
-    network_path=R/"dashboard/case_transaction_network.csv"
+    network_path=R/"dashboard/case_transaction_network_v3.csv"
     q=pd.read_csv(CM/"prioritized/case_priority_queue.csv")
     alerts=pd.read_csv(CM/"aggregated/alert.csv")
     alert_tx=pd.read_csv(CM/"aggregated/alert_transaction.csv")
