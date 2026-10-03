@@ -1,13 +1,20 @@
 import streamlit as st
 
 def render(d):
-    k=d["kpis"]; q=d["queue"]; sc=d["scenarios"]
+    q=d["queue"]; sc=d["scenarios"]; m=d["metrics"]
+    p=m[m.scenario.eq("PORTFOLIO_V3")].iloc[0]
     st.header("Executive Overview")
+    st.caption("Frozen Detection V3 · Operational Layer V1")
     cols=st.columns(5)
-    vals=[("Transactions",f"{int(k.transactions):,}"),("Transaction alerts",f"{int(k.transaction_alerts):,}"),
-          ("Alert rate",f"{k.transaction_alert_rate:.2%}"),("Cases",f"{int(k.cases):,}"),("Accounts",f"{int(k.accounts):,}")]
-    for c,(n,v) in zip(cols,vals): c.metric(n,v)
-    st.subheader("Frozen scenario volumes")
-    st.bar_chart(sc.set_index("scenario")["triggered_transactions"].sort_values(),horizontal=True)
-    st.subheader("Investigator priority distribution")
-    st.bar_chart(q["priority_band"].value_counts().reindex(["Critical","High","Medium","Standard"]).fillna(0))
+    vals=[("Transactions",f"{1_898_009:,}"),("Flagged transactions",f"{int(p.alerts):,}"),
+          ("Aggregated alerts",f"{len(d['alerts']):,}"),("Cases",f"{len(q):,}"),
+          ("HOLDOUT recall",f"{p.recall:.2%}")]
+    for c,(n,v) in zip(cols,vals):c.metric(n,v)
+    a,b=st.columns(2)
+    with a:
+        st.subheader("Operational alerts by scenario")
+        st.bar_chart(sc.set_index("scenario_id")["aggregated_alerts"].sort_values(),horizontal=True)
+    with b:
+        st.subheader("Investigator queue")
+        st.bar_chart(q["queue_priority"].value_counts().reindex(["HIGH","MEDIUM","LOW"]).fillna(0))
+    st.info("Detection performance is frozen HOLDOUT validation. Alert aggregation and case prioritization are downstream workflow layers and do not change detection metrics.")
