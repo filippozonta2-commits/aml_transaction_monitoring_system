@@ -26,7 +26,7 @@ def main():
     allx=enrich_country_risk(allx,risk)
     allx=add_transaction_features(allx)
     allx=add_historical_account_features(allx)
-    h=allx[allx["_split"].eq("holdout")].copy()
+    h=allx[allx["_split"].eq("holdout")].copy().reset_index(drop=True)
 
     pipe=joblib.load(a.model)
     feats=CATEGORICAL_FEATURES+NUMERICAL_FEATURES
@@ -40,7 +40,7 @@ def main():
     alert_rate=alerts/len(h)
 
     a.out.mkdir(parents=True,exist_ok=True)
-    out=pd.DataFrame({"holdout_row_id":h.index,"ml_probability":p,"ML_ALERT_V1":flag.astype(int),TARGET:y.values})
+    out=pd.DataFrame({"holdout_row_id":range(len(h)),"ml_probability":p,"ML_ALERT_V1":flag.astype(int),TARGET:y.values})
     out.to_csv(a.out/"ml_holdout_scores.csv",index=False)
     metrics={"transactions":len(h),"aml_positives":total,"threshold":THRESHOLD,
              "alerts":alerts,"alert_rate":alert_rate,"aml_hits":hits,
