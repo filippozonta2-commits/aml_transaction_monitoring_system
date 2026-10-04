@@ -27,8 +27,17 @@ def main():
     raw=pd.read_csv(a.holdout,usecols=["Date","Time","Sender_account","Receiver_account","Amount"])
     raw["holdout_row_id"]=np.arange(len(raw))
     z=scores.merge(raw,on="holdout_row_id",how="left",validate="one_to_one")
-    z["ts"]=pd.to_datetime(z.Date.astype(str)+" "+z.Time.astype(str),errors="coerce")
-    if z.ts.isna().any(): raise ValueError("Unparseable HOLDOUT timestamps.")
+    date_s=z["Date"].astype("string").str.strip()
+    time_s=z["Time"].astype("string").str.strip()
+    time_s=time_s.mask(time_s.isin(["<NA>","nan","NaN","None",""]))
+    combined=date_s.where(time_s.isna(),date_s+" "+time_s)
+    z["ts"]=pd.to_datetime(combined,errors="coerce")
+    missing=z["ts"].isna()
+    if missing.any():
+        z.loc[missing,"ts"]=pd.to_datetime(z.loc[missing,"Date"],errors="coerce")
+    if z.ts.isna().any():
+        bad=z.loc[z.ts.isna(),["holdout_row_id","Date","Time"]].head(10)
+        raise ValueError("Unparseable HOLDOUT timestamps remain after Date fallback:\n"+bad.to_string(index=False))
 
     # Primary subject is sender account, matching transaction-originating detection grain.
     z["primary_account_id"]=z.Sender_account.astype(str)
