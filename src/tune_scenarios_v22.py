@@ -35,51 +35,48 @@ def build_history(train, development, warmup_days=120):
 
 
 def sender_calendar_features(df, window_days, dev_start):
-    """Aggregate sender behavior in fixed windows anchored to development start.
+    """Causal sender features within fixed, development-anchored buckets.
 
-    Historical TRAIN transactions receive negative window IDs. This is still
-    retrospective bucket scoring, not a causal real-time alert simulation.
+    Each row uses only transactions observed up to and including its timestamp.
+    Equal-timestamp transactions use stable input order as a tie-breaker.
+    Windows are fixed buckets, not sliding windows.
     """
-    out = df.copy()
+    out = df.sort_values("Transaction_timestamp", kind="stable").copy()
     origin = pd.Timestamp(dev_start).normalize()
-    elapsed = (
-        out["Transaction_timestamp"] - origin
-    ).dt.total_seconds() / 86400
+    elapsed = (out["Transaction_timestamp"] - origin).dt.total_seconds() / 86400
     out["Window_id"] = np.floor(elapsed / window_days).astype("int32")
-
-    agg = out.groupby(["Window_id", "Sender_account"], observed=True).agg(
-        tx_count=("Amount", "size"),
-        aggregate_amount=("Amount", "sum"),
-        median_amount=("Amount", "median"),
-        unique_receivers=("Receiver_account", "nunique"),
-        cross_border_rate=("Cross_border", "mean"),
-        currency_mismatch_rate=("Currency_mismatch", "mean"),
-        first_tx=("Transaction_timestamp", "min"),
-        last_tx=("Transaction_timestamp", "max"),
-    ).reset_index()
-    return out, agg
-
-
-def evaluate_flag(tx, accounts, mask, typology):
-    flagged = accounts.loc[mask, ["Window_id", "Sender_account"]]
-    marked = flagged.assign(_hit=1)
-    eval_tx = tx.merge(
-        marked, on=["Window_id", "Sender_account"], how="left"
+    keys = ["Window_id", "Sender_account"]
+    grouped = out.groupby(keys, sort=False, observed=True)
+    out["tx_count"] = grouped.cumcount() + 1
+    out["aggregate_amount"] = grouped["Amount"].cumsum()
+    # Expanding median is causal; unlike a full-bucket median it cannot peek
+    # at transactions that occur later in the window.
+    out["median_amount"] = (
+        grouped["Amount"].expanding().median().reset_index(level=keys, drop=True)
     )
-    eval_tx["_hit"] = eval_tx["_hit"].fillna(0).astype("int8")
-    eval_tx = eval_tx[eval_tx["Period"].eq("development")]
+    out["unique_receivers"] = (
+        (~out.duplicated(keys + ["Receiver_account"])).astype("int32")
+        .groupby([out[k] for k in keys], sort=False).cumsum()
+    )
+    out["cross_border_rate"] = grouped["Cross_border"].cumsum() / out["tx_count"]
+    out["currency_mismatch_rate"] = (
+        grouped["Currency_mismatch"].cumsum() / out["tx_count"]
+    )
+    return out
 
-    hit = eval_tx["_hit"].eq(1)
+
+def evaluate_flag(tx, mask, typology):
+    """Evaluate only development transactions; historical rows are context."""
+    eval_tx = tx.loc[tx["Period"].eq("development")].copy()
+    hit = mask.loc[eval_tx.index].astype(bool)
     aml = eval_tx["Is_laundering"].eq(1)
     target = aml & eval_tx["Laundering_type"].eq(typology)
     triggered = int(hit.sum())
     tp = int((hit & aml).sum())
     target_hits = int((hit & target).sum())
-
     flagged_dev_accounts = eval_tx.loc[hit, "Sender_account"].nunique()
     target_accounts = eval_tx.loc[target, "Sender_account"].nunique()
     target_hit_accounts = eval_tx.loc[hit & target, "Sender_account"].nunique()
-
     return {
         "Triggered_transactions": triggered,
         "Triggered_accounts": flagged_dev_accounts,
@@ -99,20 +96,20 @@ def evaluate_flag(tx, accounts, mask, typology):
 def tune_smurfing(history, dev_start):
     rows = []
     for days in [60, 90, 120]:
-        tx, accounts = sender_calendar_features(history, days, dev_start)
+        tx = sender_calendar_features(history, days, dev_start)
         for min_count in [3, 5, 8, 10]:
             for median_ceiling in [3000, 4000, 5000, 6000]:
                 for aggregate_floor in [10000, 20000, 30000]:
                     mask = (
-                        accounts["tx_count"].ge(min_count)
-                        & accounts["median_amount"].lt(median_ceiling)
-                        & accounts["aggregate_amount"].ge(aggregate_floor)
-                        & accounts["unique_receivers"].le(3)
-                        & accounts["cross_border_rate"].le(.15)
-                        & accounts["currency_mismatch_rate"].le(.15)
+                        tx["tx_count"].ge(min_count)
+                        & tx["median_amount"].lt(median_ceiling)
+                        & tx["aggregate_amount"].ge(aggregate_floor)
+                        & tx["unique_receivers"].le(3)
+                        & tx["cross_border_rate"].le(.15)
+                        & tx["currency_mismatch_rate"].le(.15)
                     )
                     result = evaluate_flag(
-                        tx, accounts, mask, "Smurfing"
+                        tx, mask, "Smurfing"
                     )
                     result.update({
                         "Window_days": days,
@@ -127,20 +124,20 @@ def tune_smurfing(history, dev_start):
 def tune_fanout(history, dev_start):
     rows = []
     for days in [7, 10, 14, 21]:
-        tx, accounts = sender_calendar_features(history, days, dev_start)
+        tx = sender_calendar_features(history, days, dev_start)
         for min_cp in [3, 4, 5, 6]:
             for max_tx in [12, 16, 20, 30]:
                 for risk in [.10, .15, .20, .25, .30]:
                     mask = (
-                        accounts["unique_receivers"].ge(min_cp)
-                        & accounts["tx_count"].between(min_cp, max_tx)
+                        tx["unique_receivers"].ge(min_cp)
+                        & tx["tx_count"].between(min_cp, max_tx)
                         & (
-                            accounts["cross_border_rate"].ge(risk)
-                            | accounts["currency_mismatch_rate"].ge(risk)
+                            tx["cross_border_rate"].ge(risk)
+                            | tx["currency_mismatch_rate"].ge(risk)
                         )
                     )
                     result = evaluate_flag(
-                        tx, accounts, mask, "Fan_Out"
+                        tx, mask, "Fan_Out"
                     )
                     result.update({
                         "Window_days": days,
