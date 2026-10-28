@@ -39,6 +39,24 @@ The program uses the preceding TRAIN transactions solely as warm-up history, eva
 - `tests/` — causal feature and window-boundary regression tests
 - `src/scenario_engine_v2.py` — earlier fixed-bucket prototype, not a leakage-free benchmark equivalent
 
+## U.S. BSA/AML regulatory interpretation
+
+See [Regulatory alignment and limitations](docs/bsa_aml_regulatory_alignment.md) for scenario mapping to FinCEN/FFIEC guidance, the USA PATRIOT Act, and the distinction between electronic-transfer anomalies and cash structuring. **Rules are risk indicators, not statutory thresholds or automatic SAR decisions.**
+
+## Frozen chronological HOLDOUT results
+
+| Metric | HOLDOUT |
+|---|---:|
+| Transactions | 1,898,009 |
+| Labeled AML transactions | 2,136 |
+| Deduplicated alerts | 66,012 |
+| AML hits | 525 |
+| AML recall | 24.58% |
+| Precision | 0.80% |
+| Alert rate | 3.48% |
+
+Reproduce with `python3 -m src.evaluate_holdout_v3`. These scores were measured before the regulatory documentation update; no rule thresholds were changed after observing HOLDOUT.
+
 ## Next milestones
 
 - Freeze candidate rule thresholds and evaluate **once** on an untouched chronological HOLDOUT.
