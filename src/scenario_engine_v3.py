@@ -7,6 +7,7 @@ import pandas as pd
 from src.tune_scenarios_v22 import load_period, build_history
 from src.scenario_features_v3 import sender_rolling_features
 from src.receiver_features_v3 import receiver_rolling_features
+from src.alert_priority_v3 import prioritize_alerts
 
 
 def metrics(labels, flags):
@@ -75,6 +76,14 @@ def main():
     output_dir = Path("results/scenario_v3")
     output_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(output_dir / "development_summary.csv", index=False)
+    investigation_columns = ["Transaction_timestamp", "Sender_account", "Receiver_account",
+                             "Amount", "Cross_border", "Currency_mismatch"]
+    investigation = prioritize_alerts(history.loc[idx, investigation_columns],
+                                      pd.DataFrame(flags, index=idx))
+    investigation.insert(0, "Alert_id",
+                         ["V3-DEV-" + str(i).zfill(8) for i in range(1, len(investigation) + 1)])
+    investigation.to_csv(output_dir / "investigation_queue.csv", index=False)
+    print(f"Exported {len(investigation):,} explainable alerts to results/scenario_v3/investigation_queue.csv")
     print("\n=== V3 DEVELOPMENT SUMMARY ===", flush=True)
     print(pd.DataFrame(rows).to_string(index=False), flush=True)
     print(f"AML transactions: {int(labels.sum())}; total DEVELOPMENT: {len(idx)}")
