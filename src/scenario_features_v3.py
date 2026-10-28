@@ -4,7 +4,7 @@ Computes features on TRAIN warm-up plus DEVELOPMENT; only DEVELOPMENT
 transactions should be evaluated. No HOLDOUT access.
 """
 from collections import Counter, deque
-import heapq
+from sortedcontainers import SortedList
 import pandas as pd
 
 
@@ -41,23 +41,14 @@ def sender_rolling_features(df, window_days):
         if sender not in states:
             states[sender] = {
                 "events": deque(), "receivers": Counter(),
-                "lo": [], "hi": [], "active": Counter(),
+                "amounts": SortedList(),
                 "amount": 0., "border": 0, "mismatch": 0,
-                "next_id": 0,
             }
         s = states[sender]
-        def prune(heap):
-            while heap and s["active"][heap[0][1]] == 0:
-                heapq.heappop(heap)
-
-        def rebalance_median():
-            # Heap median maintenance with deletions is error-prone.
-            # V3 uses an exact, sorted active-window amount list below.
-            return None
-
         # Exact time boundary: retain events with timestamp >= now - window.
         while s["events"] and s["events"][0][0] < stamp - window:
             old = s["events"].popleft()
+            s["amounts"].remove(old[1])
             s["amount"] -= old[1]
             s["border"] -= old[3]
             s["mismatch"] -= old[4]
@@ -65,12 +56,13 @@ def sender_rolling_features(df, window_days):
             if not s["receivers"][old[2]]:
                 del s["receivers"][old[2]]
         s["events"].append((stamp, amount, receiver, border, mismatch))
+        s["amounts"].add(amount)
         s["amount"] += amount
         s["border"] += border
         s["mismatch"] += mismatch
         s["receivers"][receiver] += 1
         n = len(s["events"])
-        vals = sorted(event[1] for event in s["events"])
+        vals = s["amounts"]
         median = vals[n // 2] if n % 2 else (vals[n // 2 - 1] + vals[n // 2]) / 2
         features["tx_count"][i] = n
         features["aggregate_amount"][i] = s["amount"]
