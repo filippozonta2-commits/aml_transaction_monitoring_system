@@ -34,10 +34,14 @@ def build_history(train, development, warmup_days=120):
     return combined.sort_values("Transaction_timestamp"), dev_start
 
 
-def sender_calendar_features(df, window_days):
-    """Aggregate sender behavior in calendar windows anchored to dev start."""
+def sender_calendar_features(df, window_days, dev_start):
+    """Aggregate sender behavior in fixed windows anchored to development start.
+
+    Historical TRAIN transactions receive negative window IDs. This is still
+    retrospective bucket scoring, not a causal real-time alert simulation.
+    """
     out = df.copy()
-    origin = out["Transaction_timestamp"].min().normalize()
+    origin = pd.Timestamp(dev_start).normalize()
     elapsed = (
         out["Transaction_timestamp"] - origin
     ).dt.total_seconds() / 86400
@@ -92,10 +96,10 @@ def evaluate_flag(tx, accounts, mask, typology):
     }
 
 
-def tune_smurfing(history):
+def tune_smurfing(history, dev_start):
     rows = []
     for days in [60, 90, 120]:
-        tx, accounts = sender_calendar_features(history, days)
+        tx, accounts = sender_calendar_features(history, days, dev_start)
         for min_count in [3, 5, 8, 10]:
             for median_ceiling in [3000, 4000, 5000, 6000]:
                 for aggregate_floor in [10000, 20000, 30000]:
@@ -120,10 +124,10 @@ def tune_smurfing(history):
     return pd.DataFrame(rows)
 
 
-def tune_fanout(history):
+def tune_fanout(history, dev_start):
     rows = []
     for days in [7, 10, 14, 21]:
-        tx, accounts = sender_calendar_features(history, days)
+        tx, accounts = sender_calendar_features(history, days, dev_start)
         for min_cp in [3, 4, 5, 6]:
             for max_tx in [12, 16, 20, 30]:
                 for risk in [.10, .15, .20, .25, .30]:
@@ -179,9 +183,9 @@ def main():
     print("HOLDOUT is not accessed.")
 
     print("\nTuning Smurfing with historical warm-up...")
-    smurf = tune_smurfing(history)
+    smurf = tune_smurfing(history, dev_start)
     print("Tuning Fan-Out across intermediate configurations...")
-    fan = tune_fanout(history)
+    fan = tune_fanout(history, dev_start)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     smurf.to_csv(args.output_dir / "smurfing_v22_grid.csv", index=False)
