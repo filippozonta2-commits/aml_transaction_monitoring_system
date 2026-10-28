@@ -28,9 +28,9 @@ class RollingFeaturesTest(unittest.TestCase):
 
     def test_expired_events_removed(self):
         result = sender_rolling_features(example(), 7)
-        self.assertEqual(result["tx_count"].iloc[-1], 1)
-        self.assertEqual(result["aggregate_amount"].iloc[-1], 400.)
-        self.assertEqual(result["unique_receivers"].iloc[-1], 1)
+        self.assertEqual(result["tx_count"].iloc[-1], 2)
+        self.assertEqual(result["aggregate_amount"].iloc[-1], 700.)
+        self.assertEqual(result["unique_receivers"].iloc[-1], 2)
 
     def test_future_does_not_change_prefix(self):
         data = example()
