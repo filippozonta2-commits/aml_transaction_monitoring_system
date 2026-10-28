@@ -1,105 +1,50 @@
 # AML Transaction Monitoring System
 
-End-to-end anti-money laundering (AML) transaction monitoring project comparing traditional rule-based detection with machine-learning approaches, enriched with geographic and country-risk information and designed to culminate in an interactive investigation dashboard.
+Python portfolio project on **simulated SAML-D transactions**, combining historical account behavior, rolling-window alert rules, and experimental supervised ML baselines. Large raw datasets are intentionally not committed.
 
-## Project objective
+## Results: four-scenario V3 (DEVELOPMENT only)
 
-Traditional AML transaction-monitoring systems often generate large volumes of alerts through fixed rules. This project investigates whether machine-learning models can improve the detection of simulated money-laundering activity while reducing unnecessary alerts.
+The causal rolling-window engine evaluates four transaction-monitoring patterns: **Smurfing, Fan-Out, Structuring and Fan-In**. On 1,899,527 DEVELOPMENT transactions (1,986 labeled AML), the current four-rule prototype produced:
 
-The project is being developed around the **SAML-D** transaction dataset and external country-level financial-crime risk information.
+| Metric | DEVELOPMENT result |
+|---|---:|
+| Alerts (deduplicated) | 66,215 |
+| Alert rate | 3.49% |
+| Labeled AML transactions detected | 503 / 1,986 |
+| AML recall | 25.33% |
+| Precision | 0.76% |
 
-## Planned architecture
+These are **development results, not holdout/generalization estimates**. Smurfing and Fan-Out thresholds were explored on DEVELOPMENT; receiver-side Structuring and Fan-In currently use initial V2-inspired thresholds. Precision remains low and the model is an experimental baseline, not a deployable monitoring system. V2 and V3 feature generation differ, so raw aggregate scores should not be construed as a controlled improvement.
 
-```text
-Transaction data
-      |
-      +--> Data quality & exploratory analysis
-      |
-      +--> Country-risk enrichment
-      |
-      +--> Feature engineering
-      |       - transaction features
-      |       - geographic/currency features
-      |       - temporal features
-      |       - behavioral/network features
-      |
-      +-----------------------+
-      |                       |
-Rule-based engine      Machine-learning models
-      |                       |
-      +-----------+-----------+
-                  |
-           Model comparison
-                  |
-          Alert prioritization
-                  |
-       Investigation dashboard
+## Reproduce locally
+
+Install dependencies: `python3 -m pip install -r requirements.txt`.
+
+Place temporal SAML-D splits at `data/temporal/SAML-D_train.csv` and `data/temporal/SAML-D_development.csv` (see `data/README.md`). Do **not** upload raw transaction data.
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 -m src.scenario_engine_v3
 ```
 
-## Current baseline
+The program uses the preceding TRAIN transactions solely as warm-up history, evaluates on DEVELOPMENT, and saves `results/scenario_v3/development_summary.csv`. HOLDOUT is not read. Sender and receiver features use trailing time windows with stable ordering at equal timestamps; current transactions are included, future transactions are excluded.
 
-The current prototype includes:
+## Code map
 
-- exploratory checks for missing values, duplicates, class balance, currencies and countries;
-- cross-border transaction identification;
-- sender and receiver country-risk enrichment;
-- log-transformed transaction amount;
-- categorical preprocessing with one-hot encoding;
-- Decision Tree baseline;
-- Random Forest classifier;
-- XGBoost classifier with class-imbalance weighting;
-- threshold analysis;
-- feature-importance analysis.
+- `src/scenario_engine_v3.py` — combined four-rule V3 evaluation and deduplicated alerts
+- `src/scenario_features_v3.py` — causal sender rolling features
+- `src/receiver_features_v3.py` — causal receiver rolling features
+- `src/tune_scenarios_v3.py` — exploratory DEVELOPMENT threshold sweep
+- `src/combined_v3.py` — two-scenario trade-off exploration
+- `tests/` — causal feature and window-boundary regression tests
+- `src/scenario_engine_v2.py` — earlier fixed-bucket prototype, not a leakage-free benchmark equivalent
 
-## Evaluation strategy
+## Next milestones
 
-Because AML detection is highly imbalanced, the project will emphasize metrics that reflect alert quality rather than accuracy alone:
-
-- Precision
-- Recall
-- F1-score
-- ROC-AUC
-- PR-AUC / Average Precision
-- False-positive rate
-- Recall at a fixed alert budget
-
-The rule-based engine and ML models will ultimately be evaluated on the same holdout data.
-
-## Roadmap
-
-- [x] Initial transaction-level ML prototype
-- [x] Country-risk enrichment prototype
-- [x] Decision Tree, Random Forest and XGBoost baselines
-- [ ] Refactor baseline into reproducible project structure
-- [ ] Add temporal and currency-risk features
-- [ ] Add behavioral/account-level features
-- [ ] Build rule-based AML detection engine
-- [ ] Add laundering-typology performance analysis
-- [ ] Add network/graph features
-- [ ] Compare rule-based and ML alerting
-- [ ] Build interactive AML investigation dashboard
-- [ ] Add tests and reproducible model outputs
-
-## Repository structure
-
-```text
-.
-├── data/
-│   └── README.md
-├── docs/
-├── notebooks/
-├── results/
-│   └── figures/
-├── src/
-├── .gitignore
-├── README.md
-└── requirements.txt
-```
-
-## Data
-
-Large/raw datasets are intentionally excluded from version control. See `data/README.md` for the expected local data layout.
+- Freeze candidate rule thresholds and evaluate **once** on an untouched chronological HOLDOUT.
+- Compare precision, recall, and recall at matched alert budgets against supervised ML models.
+- Add operational dashboards/alert explanations only after evaluation quality is established.
 
 ## Disclaimer
 
-This is an educational/data-science portfolio project using simulated or research data. It is not a production AML system and should not be used to make real-world compliance decisions.
+Research/educational prototype using simulated data. No claim of operational AML effectiveness; not suitable for compliance decisions.
