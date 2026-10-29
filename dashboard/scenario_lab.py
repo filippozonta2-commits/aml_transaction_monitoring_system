@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
-from src.scenario_config_frozen import FROZEN_SCENARIOS
-from src.scenario_catalog import SCENARIO_CATALOG
 
 FLAG_TO_CFG={
  "SCN_SMURFING":"smurfing_cash_deposit","SCN_CASH_WITHDRAWAL":"cash_withdrawal",
