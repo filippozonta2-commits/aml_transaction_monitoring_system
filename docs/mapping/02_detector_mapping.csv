@@ -1,0 +1,9 @@
+Detector,Stage,Input,Output,Grouping or calculation,Threshold or window,Control
+Rule-Based V3,Detection,HOLDOUT transactions,Scenario triggers,Frozen 11-scenario logic,Frozen scenario thresholds,No HOLDOUT tuning
+Rule-Based V3,Alert aggregation,Scenario triggers,Rule aggregated alerts,Sender account plus scenario plus inactivity session,Scenario-specific,Preserve scenario identity
+Rule-Based V3,Case generation,Rule aggregated alerts,Rule cases,Sender account plus inactivity session,30 days,Preserve lineage
+XGBoost V1,Scoring,Frozen feature matrix,ml_probability,Frozen transaction model,0 to 1,No HOLDOUT tuning
+XGBoost V1,Detection,ml_probability,ML_ALERT_V1,Frozen decision threshold,0.653366,No retraining
+XGBoost V1,Alert aggregation,ML transaction alerts,ML aggregated alerts,Sender account plus inactivity session,7 days,Retain transaction evidence
+XGBoost V1,Case generation,ML aggregated alerts,ML cases,Sender account plus inactivity session,30 days,Independent case IDs
+XGBoost V1,Queue ranking,ML cases,queue_rank,Descending maximum transaction score,Operational heuristic,Not calibrated case risk
