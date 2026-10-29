@@ -1,8 +1,6 @@
 # AML Transaction Monitoring & Investigation Console
 
-An end-to-end **educational AML analytics portfolio project** built on simulated SAML-D transactions. The repository contains chronological transaction-monitoring experiments, a frozen rule-based investigation workflow, an experimental XGBoost detector, and a Streamlit investigation console with case networks and geographic context.
-
-> **Important version distinction:** The restored investigation console uses a previously frozen **11-scenario Rule-Based V3 / Operational Layer V1** pipeline and its associated case-management artifacts. The separately documented **four-scenario rolling-window prototype** in `src/scenario_engine_v3.py` is **not** the same detector or evaluation. Do not compare their results as if they were one model.
+An end-to-end **educational AML analytics portfolio project** built on simulated SAML-D transactions. The repository documents a frozen 11-scenario rule-based detection and investigation workflow, a frozen transaction-level XGBoost detector with independent ML case management, and a Streamlit investigation console with network and geographic context.
 
 ## Investigation console
 
@@ -101,30 +99,6 @@ Outputs are written under `results/ml_case_management_v1/aggregated/` and `resul
 The independent frozen **11-scenario Rule-Based V3** produces transaction-level scenario triggers, then groups them by **sender account + scenario + scenario-specific inactivity session**. Its aggregated alerts are grouped into cases by **account + 30-day inactivity session**, followed by operational prioritization and human investigation. Unlike ML, rule-based aggregation retains scenario separation at the alert level. The two pipelines must not share case counts or imply equivalent case definitions.
 
 Governance & Lineage displays each pipeline separately, using locally loaded artifact counts and checking alert-to-transaction and case-to-alert referential integrity.
-
-## Separate experimental four-scenario engine
-
-The causal rolling-window prototype detects candidate Smurfing, Fan-Out, Structuring-proxy and Fan-In patterns. It evaluates DEVELOPMENT with TRAIN as historical warm-up, and HOLDOUT with frozen thresholds. This prototype is **separate from the 11-scenario dashboard baseline**.
-
-| Metric | DEVELOPMENT | HOLDOUT |
-|---|---:|---:|
-| Transactions | 1,899,527 | 1,898,009 |
-| Labeled AML transactions | 1,986 | 2,136 |
-| Deduplicated alerts | 66,215 | 66,012 |
-| Labeled AML hits | 503 | 525 |
-| Recall | 25.33% | 24.58% |
-| Precision | 0.76% | 0.80% |
-| Alert rate | 3.49% | 3.48% |
-
-Reproduce with the temporal splits described in `data/README.md`:
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 -m src.scenario_engine_v3
-python3 -m src.evaluate_holdout_v3
-```
-
-The low precision and recall are disclosed intentionally; these results are not evidence of deployable AML effectiveness. The structuring proxy is **not** a legal cash-reporting threshold test.
 
 ## Evaluation and governance
 
