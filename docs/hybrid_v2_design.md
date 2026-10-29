@@ -23,6 +23,10 @@ Rules can be useful as **predictive signals**, not necessarily final decisions. 
 
 Select hyperparameters and thresholds on DEVELOPMENT, freeze them, then evaluate once on a previously untouched temporal TEST. Compare average precision, recall at fixed alert rate, precision at fixed investigator capacity, typology-level performance and stability over time. Log feature lineage, split hashes, model hash, random seed and threshold. Report confidence intervals and do not imply production validation from synthetic-data experiments.
 
+## Causal rolling feature reference implementation
+
+`src/causal_rolling_features_v2.py` now computes prior sender counts/averages, 24-hour velocity and amount, and 7-day sender/receiver counts, amounts and distinct counterparties. It processes equal-timestamp events as simultaneous batches and excludes future events. Five focused regression tests cover same-time isolation, window expiry, label invariance, future-row invariance and duplicate IDs. **Limitations:** this is an in-memory reference implementation with per-group Python loops, not yet optimized for the full 1.9M+ transaction dataset; it must be benchmarked and compared against an independently implemented oracle before production claims. It requires globally sorted input and a documented choice of event-time semantics.
+
 ## Required next implementation
 
 Build and test event-time causal rolling histories, training pipeline, development threshold selection, row-level test scoring and model registry manifests. The new builder alone does not establish causality of upstream inputs or any performance gain.
