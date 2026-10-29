@@ -19,6 +19,8 @@ def inspect_dates(path: Path, chunksize: int):
         start=1,
     ):
         dates = pd.to_datetime(chunk["Date"], errors="coerce").dt.normalize()
+        if dates.isna().any():
+            raise ValueError(f"Unparseable Date in profiling chunk {n}: {int(dates.isna().sum())} row(s)")
         daily = daily.add(dates.value_counts(), fill_value=0)
         daily_aml = daily_aml.add(
             dates[chunk["Is_laundering"].eq(1)].value_counts(), fill_value=0
@@ -34,6 +36,10 @@ def inspect_dates(path: Path, chunksize: int):
 
 
 def choose_boundaries(profile: pd.DataFrame, train_share=.60, dev_share=.20):
+    if not (0 < train_share < 1 and 0 < dev_share < 1 and train_share + dev_share < 1):
+        raise ValueError("Expected 0 < train_share, dev_share and train_share + dev_share < 1")
+    if profile.empty or profile["Transactions"].sum() <= 0:
+        raise ValueError("Cannot choose temporal boundaries from an empty profile")
     profile = profile.sort_values("Date").copy()
     profile["Cumulative"] = profile["Transactions"].cumsum()
     total = profile["Transactions"].sum()
@@ -47,6 +53,8 @@ def choose_boundaries(profile: pd.DataFrame, train_share=.60, dev_share=.20):
     dev_end = profile.loc[
         profile["Cumulative"].ge(dev_target), "Date"
     ].iloc[0]
+    if not (train_end < dev_end < profile["Date"].max()):
+        raise ValueError("Need at least three nonempty chronological date periods")
     return train_end, dev_end
 
 
@@ -72,7 +80,9 @@ def write_splits(
     aml_counts = {k: 0 for k in paths}
 
     for n, chunk in enumerate(pd.read_csv(path, chunksize=chunksize), start=1):
-        dates = pd.to_datetime(chunk["Date"], errors="coerce")
+        dates = pd.to_datetime(chunk["Date"], errors="coerce").dt.normalize()
+        if dates.isna().any():
+            raise ValueError(f"Unparseable Date in split chunk {n}: {int(dates.isna().sum())} row(s)")
         masks = {
             "train": dates.le(train_end),
             "development": dates.gt(train_end) & dates.le(dev_end),

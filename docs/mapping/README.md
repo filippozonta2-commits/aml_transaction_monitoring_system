@@ -5,7 +5,7 @@ The three Excel workbooks delivered with this project are:
 - `02_Detection_and_Feature_Mapping.xlsx`: detector-stage mapping and frozen HOLDOUT evaluation.
 - `03_Alert_Case_Lineage_Mapping.xlsx`: operational lineage and governance controls.
 
-**Repository format:** This directory contains companion UTF-8 CSV mappings that GitHub can diff and review. Excel workbooks are generated separately and can be committed to this directory using the instructions supplied with the deliverables. The Excel binary files are **not** yet committed here.
+**Repository format:** The three Excel workbooks and companion UTF-8 CSV mappings are committed in this directory. CSVs support readable diffs; the workbooks provide review-friendly tables. These are mapping/documentation artifacts, **not independent proof of model training, HOLDOUT scoring, SIT/UAT execution or data lineage at runtime**.
 
 Key distinction: Rule-Based V3 is the frozen 11-scenario baseline; XGBoost Detection V1 is the independent transaction-level ML detector. The four-scenario rolling experiment is not part of this mapping.
 
