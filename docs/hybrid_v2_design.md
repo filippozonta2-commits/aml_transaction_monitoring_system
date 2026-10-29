@@ -27,6 +27,16 @@ Select hyperparameters and thresholds on DEVELOPMENT, freeze them, then evaluate
 
 `src/causal_rolling_features_v2.py` now computes prior sender counts/averages, 24-hour velocity and amount, and 7-day sender/receiver counts, amounts and distinct counterparties. It processes equal-timestamp events as simultaneous batches and excludes future events. Five focused regression tests cover same-time isolation, window expiry, label invariance, future-row invariance and duplicate IDs. **Limitations:** this is an in-memory reference implementation with per-group Python loops, not yet optimized for the full 1.9M+ transaction dataset; it must be benchmarked and compared against an independently implemented oracle before production claims. It requires globally sorted input and a documented choice of event-time semantics.
 
+## Split preparation (new)
+
+`src/prepare_hybrid_v2.py` creates TRAIN/DEVELOPMENT/TEST CSVs from **one already sorted event-time source**. It computes causal rolling histories before partitioning, preserving valid prior context across split boundaries; three tests check continuity and invalid input. Example:
+
+```bash
+python -m src.prepare_hybrid_v2 --input data/v2/source.csv --train-end 2023-05-01 --development-end 2023-07-01 --output-dir data/v2
+```
+
+Input must contain transaction_id, event_time, sender, receiver, Amount, Is_laundering, Max_country_risk, Any_sanctioned_country, Cross_border and Currency_mismatch. The repository currently does **not** include the raw SAML-D CSV; this reference preparer is not yet a validated SAML-D column adapter. Source risk and geographic inputs also require independent as-of-event lineage checks. The script is in-memory and must be optimized before full-scale use.
+
 ## Experimental trainer (new)
 
 `src/train_hybrid_v2.py` trains three XGBoost ablations on separately supplied, already causally engineered TRAIN/DEVELOPMENT/TEST CSVs. It enforces chronological nonoverlap, unique IDs, two-class splits, identical feature schemas, and chooses each operating threshold on DEVELOPMENT under a configurable alert budget (default 2%). It evaluates TEST after threshold selection and writes input SHA-256 hashes and metrics. `tests/test_train_hybrid_v2.py` checks split leakage and alert-budget behavior.
