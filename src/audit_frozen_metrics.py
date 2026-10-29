@@ -68,27 +68,26 @@ def audit_summary(path: Path) -> dict:
 def audit_rows(path: Path) -> dict:
     """Audit a joined, one-row-per-HOLDOUT-transaction evidence CSV.
 
-    Required: Is_laundering, RULE_ALERT_V3, ML_ALERT_V1, ml_probability.
-    Optional: holdout_row_id (checked for uniqueness). This function requires
+    Required: holdout_row_id, Is_laundering, RULE_ALERT_V3, ML_ALERT_V1,
+    ml_probability. This function requires
     *actual* row-level data and never fabricates scores or a PR-AUC.
     """
     import pandas as pd
     from sklearn.metrics import average_precision_score
 
     df = pd.read_csv(path)
-    required = ["Is_laundering", "RULE_ALERT_V3", "ML_ALERT_V1", "ml_probability"]
+    required = ["holdout_row_id", "Is_laundering", "RULE_ALERT_V3", "ML_ALERT_V1", "ml_probability"]
     missing = [c for c in required if c not in df]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
     if df[required].isna().any().any():
         raise ValueError("Null labels, flags or scores")
-    for c in required[:3]:
+    for c in ("Is_laundering", "RULE_ALERT_V3", "ML_ALERT_V1"):
         if not df[c].isin([0, 1]).all():
             raise ValueError(f"Nonbinary column: {c}")
     if not df["ml_probability"].between(0, 1).all():
         raise ValueError("ML probabilities outside [0,1]")
-    if "holdout_row_id" in df and (df["holdout_row_id"].isna().any() or
-                                   df["holdout_row_id"].duplicated().any()):
+    if df["holdout_row_id"].isna().any() or df["holdout_row_id"].duplicated().any():
         raise ValueError("Missing/duplicate HOLDOUT row IDs")
     expected_flags = df["ml_probability"].ge(ML_THRESHOLD).astype(int)
     if not expected_flags.eq(df["ML_ALERT_V1"]).all():
