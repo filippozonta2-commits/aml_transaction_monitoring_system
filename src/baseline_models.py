@@ -1,8 +1,9 @@
-"""Baseline machine-learning pipeline for AML transaction monitoring.
+"""LEGACY EXPLORATORY baseline - NOT frozen XGBoost Detection V1.
 
-This module refactors the original exploratory prototype into reusable functions.
-It trains Decision Tree, Random Forest, and XGBoost classifiers on SAML-D
-transaction data enriched with country-level risk information.
+This module uses a random stratified split after full-population feature
+engineering. Its evaluation is not out-of-time and can contain cross-partition
+historical information. Do not cite its metrics as frozen HOLDOUT evidence.
+For independent validation see docs/independent_validation_audit_2026-10-29.md.
 """
 
 from pathlib import Path
