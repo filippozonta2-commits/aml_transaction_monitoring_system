@@ -27,6 +27,18 @@ Select hyperparameters and thresholds on DEVELOPMENT, freeze them, then evaluate
 
 `src/causal_rolling_features_v2.py` now computes prior sender counts/averages, 24-hour velocity and amount, and 7-day sender/receiver counts, amounts and distinct counterparties. It processes equal-timestamp events as simultaneous batches and excludes future events. Five focused regression tests cover same-time isolation, window expiry, label invariance, future-row invariance and duplicate IDs. **Limitations:** this is an in-memory reference implementation with per-group Python loops, not yet optimized for the full 1.9M+ transaction dataset; it must be benchmarked and compared against an independently implemented oracle before production claims. It requires globally sorted input and a documented choice of event-time semantics.
 
+## Experimental trainer (new)
+
+`src/train_hybrid_v2.py` trains three XGBoost ablations on separately supplied, already causally engineered TRAIN/DEVELOPMENT/TEST CSVs. It enforces chronological nonoverlap, unique IDs, two-class splits, identical feature schemas, and chooses each operating threshold on DEVELOPMENT under a configurable alert budget (default 2%). It evaluates TEST after threshold selection and writes input SHA-256 hashes and metrics. `tests/test_train_hybrid_v2.py` checks split leakage and alert-budget behavior.
+
+Example (requires real prepared data; no synthetic performance claims):
+
+```bash
+python -m src.train_hybrid_v2 --train data/v2/train.csv --development data/v2/development.csv --test data/v2/test.csv --max-alert-rate 0.02
+```
+
+**Important:** the script assumes its input features are genuinely as-of-event. It does not yet build or audit those histories end-to-end, and running repeated model iterations against the same TEST would invalidate its untouched-test assumption. For a defensible final result, reserve TEST for a single frozen evaluation and persist model files and preprocessing manifests.
+
 ## Required next implementation
 
 Build and test event-time causal rolling histories, training pipeline, development threshold selection, row-level test scoring and model registry manifests. The new builder alone does not establish causality of upstream inputs or any performance gain.
