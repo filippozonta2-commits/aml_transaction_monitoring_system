@@ -118,6 +118,14 @@ def run(args):
     paths = (args.train, args.development, args.test)
     train, dev, test = [read_split(path) for path in paths]
     check_splits(train, dev, test)
+    # The experiment intentionally refuses input with suspicious precomputed
+    # label-derived features. Provenance must still be independently audited.
+    forbidden = ("country_aml_rate", "country_target_rate", "Scenario_alert",
+                 "Alert_reasons", "predicted_label", "prediction")
+    for name, frame in zip(("train", "development", "test"), (train, dev, test)):
+        unsafe = sorted(set(forbidden).intersection(frame.columns))
+        if unsafe:
+            raise ValueError(f"{name}: prohibited or unaudited columns: {unsafe}")
     results = {
         "experimental": True,
         "test_used_for_model_selection": False,
