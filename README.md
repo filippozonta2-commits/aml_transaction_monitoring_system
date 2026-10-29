@@ -17,7 +17,7 @@ The console provides:
 - Monitoring Overview and frozen Rule-Based V3 vs ML Detection V1 comparison
 - Scenario Monitoring and an investigator-prioritized case queue
 - Case Investigation: alert lineage, transaction evidence, account network and country-level geography
-- ML analytics and governance/lineage views
+- ML analytics, independent ML investigator queue, ML case investigation and governance/lineage views
 
 The console loads **locally generated CSV artifacts** from `results/`. Raw data and large intermediate outputs are not committed. A working checkout of the code alone does not guarantee that every console page has its required artifacts.
 
@@ -31,7 +31,7 @@ The console loads **locally generated CSV artifacts** from `results/`. Raw data 
 
 Optional, feature-specific artifacts:
 - `results/dashboard/case_transaction_network_v3.csv` — network and geography
-- `results/ml_case_v3/ml_case_scores.csv` — case-level ML prioritization
+- `results/ml_case_v3/ml_case_scores.csv` — legacy rule-case ML prioritization (distinct from ML detection and independent ML cases)
 - `results/ml_case_v3/ml_feature_importance.csv`
 - `results/ml_detection/holdout_v1/ml_holdout_scores.csv` — transaction-level frozen ML detector
 - `results/comparison_rule_v3_vs_ml_v1/overlap_summary.csv` — frozen detector overlap
@@ -44,6 +44,47 @@ python3 -m src.build_case_network_data
 ```
 
 This uses `data/temporal/SAML-D_holdout.csv` and creates `results/dashboard/case_transaction_network_v3.csv`. The geography tab displays observed country-level transaction context, not verified physical locations or evidence of wrongdoing.
+
+## Frozen ML Detection V1 → operational cases (locally verified)
+
+The frozen transaction-level XGBoost model is evaluated **before** operational aggregation. The downstream process does not retrain the model, change its decision threshold, or use AML ground-truth labels for case generation.
+
+```text
+HOLDOUT transactions
+  → frozen XGBoost probability and detection threshold
+  → 39,409 flagged transactions
+  → sender-account + 7-day inactivity-session alert aggregation
+  → 35,107 aggregated ML alerts
+  → sender-account + 30-day inactivity-session case generation
+  → 30,114 independent ML investigation cases
+  → ML Investigator Queue → Human Review
+```
+
+These figures were observed from a local HOLDOUT run and checked in the Streamlit ML Case Management page. The workflow preserves links to all **39,409** flagged transactions. The operational case count is **23.59% lower** than the transaction-alert count; this is **not** a measured reduction in investigation hours, nor an improvement in detection recall.
+
+| Stage | Count | Reduction from previous stage |
+|---|---:|---:|
+| Frozen XGBoost transaction alerts | 39,409 | — |
+| Aggregated ML investigation alerts | 35,107 | 10.92% |
+| Independent ML investigation cases | 30,114 | 14.22% |
+
+**Aggregation choice:** the subject is the **sender account**, not the recipient or a customer-level multi-account entity. Multiple flagged transactions from one sender can share an alert if their successive timestamps are within seven days; aggregated alerts can share a case if their successive start times are within 30 days. These are *inactivity sessions*, not calendar buckets. Other entity-resolution strategies could produce different case volumes.
+
+With the frozen ML score artifact and original temporal HOLDOUT CSV available locally, rebuild the ML operational layer using:
+
+```bash
+python3 -m src.build_ml_aggregated_alert_layer_v1
+python3 -m src.build_ml_case_management_v1
+python3 -m streamlit run app.py
+```
+
+Outputs are written under `results/ml_case_management_v1/aggregated/` and `results/ml_case_management_v1/cases/`. The ML case queue ranks cases by their **maximum triggering transaction probability**; this is an operational ordering heuristic, **not a calibrated case-level risk probability**.
+
+### Rule-Based V3 operational workflow
+
+The independent frozen **11-scenario Rule-Based V3** produces transaction-level scenario triggers, then groups them by **sender account + scenario + scenario-specific inactivity session**. Its aggregated alerts are grouped into cases by **account + 30-day inactivity session**, followed by operational prioritization and human investigation. Unlike ML, rule-based aggregation retains scenario separation at the alert level. The two pipelines must not share case counts or imply equivalent case definitions.
+
+Governance & Lineage displays each pipeline separately, using locally loaded artifact counts and checking alert-to-transaction and case-to-alert referential integrity.
 
 ## Separate experimental four-scenario engine
 
