@@ -34,7 +34,8 @@ class CountryTargetEncodingTests(unittest.TestCase):
             "country": ["IT", "US"], "label": [1, 0],
             "event_time": ["2023-01-01", "2023-01-02"],
         })
-        encoder = PastOnlyCountryEncoder().fit_transform_train(train)
+        encoder = PastOnlyCountryEncoder()
+        encoder.fit_transform_train(train)
         holdout = pd.DataFrame({
             "country": ["IT", "XX"], "event_time": ["2024-01-01", "2024-01-02"],
             "label": [0, 1],
