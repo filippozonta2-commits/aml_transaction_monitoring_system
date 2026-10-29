@@ -78,8 +78,10 @@ def choose_threshold(y, probabilities, max_alert_rate):
     budget = max(1, int(np.floor(len(probabilities) * max_alert_rate)))
     ordered = np.sort(np.asarray(probabilities, dtype=float))[::-1]
     threshold = float(ordered[budget - 1])
-    # Strictly above the boundary guarantees the alert budget under ties.
-    cutoff = float(np.nextafter(threshold, np.inf))
+    # Include the budget boundary when doing so fits the capacity. If a
+    # tie would exceed the capacity, exclude the tied boundary scores.
+    at_or_above = int(np.count_nonzero(np.asarray(probabilities) >= threshold))
+    cutoff = threshold if at_or_above <= budget else float(np.nextafter(threshold, np.inf))
     selected = np.asarray(probabilities) >= cutoff
     if selected.sum() > budget:
         raise AssertionError("Alert budget exceeded")
