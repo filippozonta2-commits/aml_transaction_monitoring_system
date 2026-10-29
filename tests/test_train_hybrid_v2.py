@@ -32,6 +32,11 @@ class HybridExperimentTests(unittest.TestCase):
         cutoff = choose_threshold(np.array([1, 0, 1, 0, 0]), scores, 0.4)
         self.assertLessEqual(int((scores >= cutoff).sum()), 2)
 
+    def test_unique_scores_fill_alert_capacity(self):
+        scores = np.array([0.9, 0.8, 0.7, 0.1, 0.0])
+        cutoff = choose_threshold(np.array([1, 0, 1, 0, 0]), scores, 0.4)
+        self.assertEqual(int((scores >= cutoff).sum()), 2)
+
     def test_metrics_are_derived_from_rows(self):
         r = report(np.array([1, 0, 1, 0]), np.array([0.9, 0.8, 0.1, 0.0]), 0.5)
         self.assertEqual(r["true_positives"], 1)
