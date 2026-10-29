@@ -1,0 +1,8 @@
+Pipeline,From,To,Join or grouping key,Window,Target artifact,Verified count
+ML V1,Transaction alerts,Aggregated alerts,Sender account plus inactivity session,7 days,results/ml_case_management_v1/aggregated/alert.csv,35107
+ML V1,Transaction alerts,Alert evidence,alert_id plus transaction_id,Not applicable,results/ml_case_management_v1/aggregated/alert_transaction.csv,39409
+ML V1,Aggregated alerts,Cases,Sender account plus inactivity session,30 days,results/ml_case_management_v1/cases/case.csv,30114
+ML V1,Aggregated alerts,Case alert bridge,case_id plus alert_id,Not applicable,results/ml_case_management_v1/cases/case_alert.csv,35107
+ML V1,Cases,Investigator queue,queue_rank,Not applicable,results/ml_case_management_v1/cases/case_priority_queue.csv,30114
+Rule V3,Scenario triggers,Aggregated alerts,Account plus scenario plus session,Scenario-specific,results/case_management_v3/aggregated/alert.csv,Not recorded
+Rule V3,Aggregated alerts,Cases,Account plus session,30 days,results/case_management_v3/aggregated_cases/case_alert.csv,24804
