@@ -1,6 +1,6 @@
 import streamlit as st
 from dashboard.data import load_dashboard
-from dashboard import overview,queue,case_view,scenario_lab,lineage_view,model_comparison
+from dashboard import overview,queue,case_view,scenario_lab,lineage_view,model_comparison,ml_cases
 
 st.set_page_config(page_title="AML Investigation Console",page_icon="🔎",layout="wide")
 st.markdown("""<style>
@@ -45,7 +45,7 @@ else:
 if strategy=="Scenario-based":
     pages=["Monitoring Overview","Model Comparison","Scenario Monitoring","Investigator Queue","Case Investigation","Simulation Lab","Governance & Lineage"]
 else:
-    pages=["Monitoring Overview","Model Comparison","ML Analytics","Governance & Lineage"]
+    pages=["Monitoring Overview","Model Comparison","ML Analytics","ML Case Management","Governance & Lineage"]
 page=st.sidebar.radio("Workspace",pages)
 
 if page=="Monitoring Overview": overview.render(d)
@@ -54,5 +54,6 @@ elif page=="Scenario Monitoring": scenario_lab.render(d,"monitor")
 elif page=="Investigator Queue": queue.render(d)
 elif page=="Case Investigation": case_view.render(d)
 elif page=="ML Analytics": lineage_view.render(d,"ml")
+elif page=="ML Case Management": ml_cases.render(d)
 elif page=="Simulation Lab": scenario_lab.render(d,"simulate")
 else: lineage_view.render(d,"lineage")
