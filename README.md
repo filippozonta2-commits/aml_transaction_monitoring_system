@@ -2,6 +2,12 @@
 
 An end-to-end **educational AML analytics portfolio project** built on simulated SAML-D transactions. The repository documents a frozen 11-scenario rule-based detection and investigation workflow, a frozen transaction-level XGBoost detector with independent ML case management, and a Streamlit investigation console with network and geographic context.
 
+## Independent validation status (2026-10-29)
+
+The frozen HOLDOUT metrics below are **previously reported project results**, not newly reproduced by the independent repository review. An offline audit has reconciled the published confusion-matrix arithmetic, but the public checkout does **not** include the frozen XGBoost training/scoring implementation, model artifact, exact feature schema, DEVELOPMENT threshold-selection log or full HOLDOUT score/label file. Therefore the reported **84.18% recall is not yet independently verified**, and PR-AUC cannot be calculated from the published summary counts.
+
+The legacy exploratory `src/baseline_models.py` uses a random stratified split after feature engineering and **must not be treated as the frozen chronological model**. The country-level supervised target-rate features mentioned in earlier portfolio descriptions have no auditable source/provenance in this repository; their leakage status remains **unresolved**. See [Independent validation audit](docs/independent_validation_audit_2026-10-29.md) and run `python -m src.audit_frozen_metrics` for summary arithmetic reconciliation. Row-level audit requires real joined HOLDOUT evidence.
+
 ## Investigation console
 
 Launch from the repository root:
