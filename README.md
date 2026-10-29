@@ -1,68 +1,86 @@
-# AML Transaction Monitoring System
+# AML Transaction Monitoring & Investigation Console
 
-Python portfolio project on **simulated SAML-D transactions**, combining historical account behavior, rolling-window alert rules, and experimental supervised ML baselines. Large raw datasets are intentionally not committed.
+An end-to-end **educational AML analytics portfolio project** built on simulated SAML-D transactions. The repository contains chronological transaction-monitoring experiments, a frozen rule-based investigation workflow, an experimental XGBoost detector, and a Streamlit investigation console with case networks and geographic context.
 
-## Results: four-scenario V3 (DEVELOPMENT only)
+> **Important version distinction:** The restored investigation console uses a previously frozen **11-scenario Rule-Based V3 / Operational Layer V1** pipeline and its associated case-management artifacts. The separately documented **four-scenario rolling-window prototype** in `src/scenario_engine_v3.py` is **not** the same detector or evaluation. Do not compare their results as if they were one model.
 
-The causal rolling-window engine evaluates four transaction-monitoring patterns: **Smurfing, Fan-Out, Structuring and Fan-In**. On 1,899,527 DEVELOPMENT transactions (1,986 labeled AML), the current four-rule prototype produced:
+## Investigation console
 
-| Metric | DEVELOPMENT result |
-|---|---:|
-| Alerts (deduplicated) | 66,215 |
-| Alert rate | 3.49% |
-| Labeled AML transactions detected | 503 / 1,986 |
-| AML recall | 25.33% |
-| Precision | 0.76% |
+Launch from the repository root:
 
-These are **development results, not holdout/generalization estimates**. Smurfing and Fan-Out thresholds were explored on DEVELOPMENT; receiver-side Structuring and Fan-In currently use initial V2-inspired thresholds. Precision remains low and the model is an experimental baseline, not a deployable monitoring system. V2 and V3 feature generation differ, so raw aggregate scores should not be construed as a controlled improvement.
+```bash
+python3 -m pip install -r requirements.txt
+python3 -m streamlit run app.py
+```
 
-## Reproduce locally
+The console provides:
+- Monitoring Overview and frozen Rule-Based V3 vs ML Detection V1 comparison
+- Scenario Monitoring and an investigator-prioritized case queue
+- Case Investigation: alert lineage, transaction evidence, account network and country-level geography
+- ML analytics and governance/lineage views
 
-Install dependencies: `python3 -m pip install -r requirements.txt`.
+The console loads **locally generated CSV artifacts** from `results/`. Raw data and large intermediate outputs are not committed. A working checkout of the code alone does not guarantee that every console page has its required artifacts.
 
-Place temporal SAML-D splits at `data/temporal/SAML-D_train.csv` and `data/temporal/SAML-D_development.csv` (see `data/README.md`). Do **not** upload raw transaction data.
+### Required console artifacts
+
+- `results/case_management_v3/prioritized/case_priority_queue.csv`
+- `results/case_management_v3/aggregated/alert.csv`
+- `results/case_management_v3/aggregated/alert_transaction.csv`
+- `results/case_management_v3/aggregated_cases/case_alert.csv`
+- `results/holdout_v3/final_metrics.csv`
+
+Optional, feature-specific artifacts:
+- `results/dashboard/case_transaction_network_v3.csv` — network and geography
+- `results/ml_case_v3/ml_case_scores.csv` — case-level ML prioritization
+- `results/ml_case_v3/ml_feature_importance.csv`
+- `results/ml_detection/holdout_v1/ml_holdout_scores.csv` — transaction-level frozen ML detector
+- `results/comparison_rule_v3_vs_ml_v1/overlap_summary.csv` — frozen detector overlap
+- `results/ml_detection/full_train_development/operating_points.csv`
+
+To rebuild the case-level geographic/network context **after the original V3/V1 case-management outputs exist**:
+
+```bash
+python3 -m src.build_case_network_data
+```
+
+This uses `data/temporal/SAML-D_holdout.csv` and creates `results/dashboard/case_transaction_network_v3.csv`. The geography tab displays observed country-level transaction context, not verified physical locations or evidence of wrongdoing.
+
+## Separate experimental four-scenario engine
+
+The causal rolling-window prototype detects candidate Smurfing, Fan-Out, Structuring-proxy and Fan-In patterns. It evaluates DEVELOPMENT with TRAIN as historical warm-up, and HOLDOUT with frozen thresholds. This prototype is **separate from the 11-scenario dashboard baseline**.
+
+| Metric | DEVELOPMENT | HOLDOUT |
+|---|---:|---:|
+| Transactions | 1,899,527 | 1,898,009 |
+| Labeled AML transactions | 1,986 | 2,136 |
+| Deduplicated alerts | 66,215 | 66,012 |
+| Labeled AML hits | 503 | 525 |
+| Recall | 25.33% | 24.58% |
+| Precision | 0.76% | 0.80% |
+| Alert rate | 3.49% | 3.48% |
+
+Reproduce with the temporal splits described in `data/README.md`:
 
 ```bash
 python3 -m unittest discover -s tests -v
 python3 -m src.scenario_engine_v3
+python3 -m src.evaluate_holdout_v3
 ```
 
-The program uses the preceding TRAIN transactions solely as warm-up history, evaluates on DEVELOPMENT, and saves `results/scenario_v3/development_summary.csv`. HOLDOUT is not read. Sender and receiver features use trailing time windows with stable ordering at equal timestamps; current transactions are included, future transactions are excluded.
+The low precision and recall are disclosed intentionally; these results are not evidence of deployable AML effectiveness. The structuring proxy is **not** a legal cash-reporting threshold test.
 
-## Code map
+## Evaluation and governance
 
-- `src/scenario_engine_v3.py` — combined four-rule V3 evaluation and deduplicated alerts
-- `src/scenario_features_v3.py` — causal sender rolling features
-- `src/receiver_features_v3.py` — causal receiver rolling features
-- `src/tune_scenarios_v3.py` — exploratory DEVELOPMENT threshold sweep
-- `src/combined_v3.py` — two-scenario trade-off exploration
-- `tests/` — causal feature and window-boundary regression tests
-- `src/scenario_engine_v2.py` — earlier fixed-bucket prototype, not a leakage-free benchmark equivalent
+The console compares its **frozen 11-scenario Rule-Based V3** with the **frozen transaction-level XGBoost Detection V1** only where matching HOLDOUT artifacts are present. The ML recall and precision displayed there are computed from saved row-level labels and predictions, not hardcoded. The separate case-prioritization ML model is a different component from transaction-level detection.
 
-## U.S. BSA/AML regulatory interpretation
+Chronological splits, training/development model selection and frozen HOLDOUT evaluation are intended to reduce look-ahead bias. HOLDOUT should not be used to tune thresholds. The simulation lab is intentionally disabled for legacy scenario configurations.
 
-See [Regulatory alignment and limitations](docs/bsa_aml_regulatory_alignment.md) for scenario mapping to FinCEN/FFIEC guidance, the USA PATRIOT Act, and the distinction between electronic-transfer anomalies and cash structuring. **Rules are risk indicators, not statutory thresholds or automatic SAR decisions.**
+See `docs/bsa_aml_regulatory_alignment.md` for regulatory interpretation and limitations.
 
-## Frozen chronological HOLDOUT results
+## Technology
 
-| Metric | HOLDOUT |
-|---|---:|
-| Transactions | 1,898,009 |
-| Labeled AML transactions | 2,136 |
-| Deduplicated alerts | 66,012 |
-| AML hits | 525 |
-| AML recall | 24.58% |
-| Precision | 0.80% |
-| Alert rate | 3.48% |
-
-Reproduce with `python3 -m src.evaluate_holdout_v3`. These scores were measured before the regulatory documentation update; no rule thresholds were changed after observing HOLDOUT.
-
-## Next milestones
-
-- Freeze candidate rule thresholds and evaluate **once** on an untouched chronological HOLDOUT.
-- Compare precision, recall, and recall at matched alert budgets against supervised ML models.
-- Add operational dashboards/alert explanations only after evaluation quality is established.
+Python, pandas, NumPy, scikit-learn, XGBoost, Streamlit, Plotly, NetworkX, Matplotlib and country normalization.
 
 ## Disclaimer
 
-Research/educational prototype using simulated data. No claim of operational AML effectiveness; not suitable for compliance decisions.
+**Research/portfolio prototype using simulated transactions.** Alert flags and geographic patterns are risk indicators, not determinations of money laundering, suspicious activity reports or regulatory compliance decisions. Human review is required. The repository is not a production transaction-monitoring system.
