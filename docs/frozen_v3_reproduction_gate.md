@@ -46,3 +46,27 @@ remain separate from the original frozen benchmark.
 
 The repository's documented 11-scenario performance remains a historical
 reference with insufficient executable provenance for exact re-scoring.
+
+## Correct frozen portfolio located (supersedes earlier missing-source statement)
+
+**FOUND:** `feature/payment-method-segmentation` at commit
+`e5bc2c6a6aede7158594d01d6619a3febb8cb510` contains the actual
+11-control DEVELOPMENT freeze dated 2026-10-02:
+`governance/PORTFOLIO_FREEZE_V3.md`, `src/scenario_config_frozen.py`,
+`src/scenario_catalog.py`, `src/materialize_frozen_v3_holdout.py`,
+`src/materialize_deposit_send_holdout_spark.py`,
+`src/materialize_governed_geo_holdout_spark.py`, and
+`src/evaluate_frozen_v3_holdout.py`.
+
+Original controls: STRUCTURING, DEPOSIT_SEND, FAN_OUT, FAN_IN,
+CASH_WITHDRAWAL, SMURFING, UNUSUAL_AMOUNT_Z4,
+SINGLE_LARGE_TRANSACTION, GATHER_SCATTER,
+HIGH_RISK_GEOGRAPHY, SANCTIONED_GEOGRAPHY.
+
+**Reproduction caution:** the frozen materializers use fixed windows with
+whole-bucket aggregates (potential future-event visibility) and Deposit-Send
+uses a forward 72-hour horizon (intentional delayed detection). These
+semantics must be preserved for a historical reproduction, but audited
+separately before calling the system real-time causal monitoring. Geography
+requires the governed country-risk reference. No new HOLDOUT run has been
+completed in this audit.
