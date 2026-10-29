@@ -1,0 +1,8 @@
+Metric,Rule-Based V3,XGBoost V1,Unit
+HOLDOUT transactions,1898009,1898009,transactions
+AML positives,2136,2136,transactions
+Flagged transactions,127981,39409,transactions
+AML hits,1225,1798,transactions
+Precision,0.009572,0.0456241,fraction
+Recall,0.573502,0.8417603,fraction
+Alert rate,0.067429,0.0207633,fraction
