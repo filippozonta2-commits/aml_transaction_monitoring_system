@@ -5,6 +5,10 @@ R=Path("results"); CM=R/"case_management_v3"
 @st.cache_data
 def load_dashboard():
     network_path=R/"dashboard/case_transaction_network_v3.csv"
+    ml_cases_path=R/"ml_case_management_v1/cases/case.csv"
+    ml_alerts_path=R/"ml_case_management_v1/aggregated/alert.csv"
+    ml_case_alert_path=R/"ml_case_management_v1/cases/case_alert.csv"
+    ml_alert_tx_path=R/"ml_case_management_v1/aggregated/alert_transaction.csv"
     ml_score_path=R/"ml_case_v3/ml_case_scores.csv"
     ml_imp_path=R/"ml_case_v3/ml_feature_importance.csv"
     ml_det_path=R/"ml_detection/holdout_v1/ml_holdout_scores.csv"
@@ -20,7 +24,7 @@ def load_dashboard():
     for x in ["alert_created_at","last_trigger_at"]:
         if x in alerts.columns:alerts[x]=pd.to_datetime(alerts[x],errors="coerce")
     sc=alerts.groupby("scenario_id",as_index=False).agg(aggregated_alerts=("alert_id","count"),triggering_transactions=("transaction_count","sum"),unique_accounts=("primary_account_id","nunique"))
-    return {"queue":q,"alerts":alerts,"alert_tx":alert_tx,"case_alert":case_alert,"metrics":metrics,"scenarios":sc,"network":pd.read_csv(network_path) if network_path.exists() else None,"ml_scores":pd.read_csv(ml_score_path) if ml_score_path.exists() else None,"ml_importance":pd.read_csv(ml_imp_path) if ml_imp_path.exists() else None,
+    return {"ml_cases":pd.read_csv(ml_cases_path) if ml_cases_path.exists() else None,"ml_alerts":pd.read_csv(ml_alerts_path) if ml_alerts_path.exists() else None,"ml_case_alert":pd.read_csv(ml_case_alert_path) if ml_case_alert_path.exists() else None,"ml_alert_tx":pd.read_csv(ml_alert_tx_path) if ml_alert_tx_path.exists() else None,"queue":q,"alerts":alerts,"alert_tx":alert_tx,"case_alert":case_alert,"metrics":metrics,"scenarios":sc,"network":pd.read_csv(network_path) if network_path.exists() else None,"ml_scores":pd.read_csv(ml_score_path) if ml_score_path.exists() else None,"ml_importance":pd.read_csv(ml_imp_path) if ml_imp_path.exists() else None,
             "ml_detection":pd.read_csv(ml_det_path) if ml_det_path.exists() else None,
             "overlap":pd.read_csv(overlap_path) if overlap_path.exists() else None,
             "ml_dev_ops":pd.read_csv(ml_dev_ops_path) if ml_dev_ops_path.exists() else None}
