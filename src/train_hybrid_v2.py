@@ -13,7 +13,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score, precision_score, recall_score
-from xgboost import XGBClassifier
 
 from src.hybrid_features_v2 import build_hybrid_features
 
@@ -110,6 +109,10 @@ def sha256(path):
 
 
 def run(args):
+    try:
+        from xgboost import XGBClassifier
+    except ImportError as exc:
+        raise RuntimeError('Training requires xgboost: pip install xgboost') from exc
     paths = (args.train, args.development, args.test)
     train, dev, test = [read_split(path) for path in paths]
     check_splits(train, dev, test)
