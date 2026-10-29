@@ -25,3 +25,24 @@ the row-level evidence and original scenario implementation are available.
 
 The simplified benchmark in `docs/samld_simplified_benchmark_2026-10-29.md`
 was rejected by the project owner and is not a valid V3 or Hybrid V2 result.
+
+## Repository branch recovery (verified)
+
+An inspection of the GitHub branch `feature/scenario-engine` at commit
+`3a196a7d1ee8e0c1e8400d913802de486565dbea` recovered the following
+historical implementation files absent from `main`:
+
+- `src/scenario_features_v3.py` — sender rolling feature prototype
+- `src/receiver_features_v3.py` — receiver rolling feature prototype
+- `src/scenario_engine_v3.py` — **explicitly four scenarios**: Smurfing, Fan-Out, Structuring, Fan-In
+- `src/evaluate_holdout_v3.py` — **explicitly four-scenario** HOLDOUT evaluation
+- `src/benchmark_scenarios_v3.py` — two-pattern DEVELOPMENT benchmark
+
+**Important:** Despite the V3 filenames, these sources are NOT the original
+11-scenario frozen benchmark. They must not be imported as an 11-scenario
+reproduction. The recovered feature implementations can be independently
+reviewed for causality and efficiency, but their provenance and thresholds
+remain separate from the original frozen benchmark.
+
+The repository's documented 11-scenario performance remains a historical
+reference with insufficient executable provenance for exact re-scoring.
