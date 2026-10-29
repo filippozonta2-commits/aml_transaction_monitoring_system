@@ -1,4 +1,4 @@
-# SAML-D end-to-end simplified XGBoost benchmark — 2026-10-29
+> **RETRACTED AS A PROJECT PERFORMANCE BENCHMARK (2026-10-29).** This exploratory experiment used simplified scenario proxies rather than the original scenario configuration. The owner explicitly rejected its use as the AML portfolio benchmark. **Do not cite its precision/recall as V1, V3 or Hybrid V2 performance; do not use it to choose the production model.** Retained solely as a clearly labeled experimental record. The frozen V1/V3 results remain unchanged. The current generic `src/rule_based.py` lists 12 flags, while the historical V3 summary lists 11; the original 11-scenario configuration must be recovered and verified rather than assuming they are identical.\n\n# SAML-D end-to-end simplified XGBoost benchmark — 2026-10-29
 
 **Status: independently executed in the analysis runtime, NOT the full Hybrid V2.**
 This is a new benchmark and must not replace the frozen V1 figures.
