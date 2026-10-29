@@ -3,7 +3,7 @@ import streamlit as st
 
 def render(d):
     st.header("Detection Model Comparison")
-    st.caption("Frozen Rule-Based V3 vs Frozen ML Detection V1 · identical HOLDOUT population · no post-HOLDOUT tuning")
+    st.caption("Reported frozen Rule-Based V3 vs XGBoost V1 · identical documented HOLDOUT population · independent reproduction pending")
     m=d["metrics"]; rp=m[m.scenario.eq("PORTFOLIO_V3")].iloc[0]
     ml=d.get("ml_detection"); ov=d.get("overlap")
     if ml is None or ov is None:
@@ -41,7 +41,7 @@ def render(d):
         st.subheader("Transaction workload overlap")
         x=ov[["group","transactions"]].copy()
         st.bar_chart(x.set_index("group")["transactions"])
-    st.info("Overlap is a post-HOLDOUT diagnostic only, not a frozen combined detector. The charts above are calculated from the saved comparison artifact.")
+    st.info("Overlap is a post-HOLDOUT diagnostic only, not a frozen combined detector. The charts above are calculated from the saved comparison artifact. Original model/feature/threshold provenance is not independently reproducible from the public checkout; see docs/independent_validation_audit_2026-10-29.md.")
     st.subheader("What the comparison means")
     st.markdown(f"""**ML V1** reduces alert volume from **{int(rp.alerts):,}** to **{ma:,}** while increasing captured AML from **{int(rp.aml_hits):,}** to **{mh:,}**.  
 **Rule-Based V3** remains the transparent policy/scenario benchmark and retains limited complementary coverage.  
