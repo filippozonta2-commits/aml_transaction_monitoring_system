@@ -70,3 +70,33 @@ semantics must be preserved for a historical reproduction, but audited
 separately before calling the system real-time causal monitoring. Geography
 requires the governed country-risk reference. No new HOLDOUT run has been
 completed in this audit.
+
+## Execution dependency audit (2026-10-29)
+
+The original frozen V3 branch provides the 11-control materializers and final
+HOLDOUT evaluator, but its tracked `data/` directory contains only README.md.
+The required `data/country_risk.csv` is **not tracked** there. The country-risk
+builder expects columns `Country`, `ISO Code`, `Overall Score`,
+`ML/TF Risk`, `FATF`, and `Sanction`, with policy cutoff 6.50.
+Do not fabricate this reference: doing so changes the frozen geography controls.
+
+Historical execution order (once original inputs and dependencies are present):
+
+```bash
+python src/build_governed_country_risk_spark.py --country-risk data/country_risk.csv
+python src/materialize_frozen_v3_holdout.py
+python src/materialize_deposit_send_holdout_spark.py
+python src/materialize_governed_geo_holdout_spark.py
+python src/evaluate_frozen_v3_holdout.py
+```
+
+The historical branch uses some unqualified imports (e.g.
+`from materialize_frozen_scenarios import ...`), so its scripts are typically
+invoked as `python src/<script>.py` from the repository root, not necessarily
+via `python src/<module>`. Adapt the invocation to the original imports;
+do not change rule logic. The evaluation requires all three materialized
+HOLDOUT parts to share identical `holdout_row_id` ordering.
+
+**Audit limitation:** no full run has been executed in this session; the local
+runtime does not have PySpark installed. Do not claim reproducibility from
+source discovery alone.
