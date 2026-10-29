@@ -38,10 +38,15 @@ st.sidebar.markdown("### Investigation strategy")
 strategy=st.sidebar.radio("Prioritization approach",["Scenario-based","Machine Learning"],horizontal=False,
     help="Compare the frozen Scenario-Based V3 detector with the frozen transaction-level ML Detection V1 engine.")
 d["strategy"]=strategy
-if strategy=="Machine Learning" and d.get("ml_scores") is None:
-    st.sidebar.warning("ML scores not built yet. Run the ML feature + scoring pipeline.")
+if strategy=="Machine Learning":
+    if d.get("ml_detection") is None:
+        st.sidebar.warning("Frozen ML transaction detection scores are missing.")
+    elif d.get("ml_cases") is None:
+        st.sidebar.warning("ML investigation cases are missing. Build ML alert aggregation and case management.")
+    else:
+        st.sidebar.caption("Frozen XGBoost detection · account-session cases · operational probability ranking")
 else:
-    st.sidebar.caption("Frozen V3 detection · "+("transparent operational score" if strategy=="Scenario-based" else "frozen DEVELOPMENT-trained XGBoost ranking"))
+    st.sidebar.caption("Frozen Rule-Based V3 · transparent scenario-driven priority")
 if strategy=="Scenario-based":
     pages=["Monitoring Overview","Model Comparison","Scenario Monitoring","Investigator Queue","Case Investigation","Simulation Lab","Governance & Lineage"]
 else:
