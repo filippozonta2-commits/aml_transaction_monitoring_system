@@ -26,9 +26,11 @@
 5. **CTR and SAR distinction:** CTR generally covers qualifying cash transactions over $10,000 in one business day (with applicable aggregation). A bank SAR may be required at $5,000 or more when relevant suspicion conditions apply; that is **not** an automatic alert threshold or blanket safe harbor below $5,000.
 6. **Holdout discipline:** Do not revise existing V3 parameters after observing HOLDOUT. Any materially revised rules are **V4**, with a new prospective/untouched evaluation period needed for an unbiased final estimate.
 
-## Current performance (frozen V3)
+## Current performance (reported frozen 11-scenario Rule-Based V3)
 
-HOLDOUT: 1,898,009 transactions; 2,136 labeled AML; 66,012 alerts; 525 AML hits; **24.58% recall**, **0.80% precision**, **3.48% alert rate**. The dataset's labels are synthetic and not bank SAR outcomes.
+The published transaction-level HOLDOUT summary reports **1,898,009 transactions**, **2,136 labeled AML positives**, **127,981 flagged transactions**, and **1,225 labeled AML hits** (**57.35% recall**, **0.96% precision**, **6.74% alert rate**). These are reported summary counts, internally reconciled arithmetically, **not independently reproduced from row-level artifacts in this repository**. See `docs/independent_validation_audit_2026-10-29.md`.
+
+**Historical four-scenario experiment (not the frozen 11-scenario benchmark):** a separate earlier result reported 66,012 flags and 525 hits (24.58% recall). Do not label this as the frozen 11-scenario V3 benchmark or mix its outputs with the comparison against XGBoost V1. All labels are synthetic, not bank SAR outcomes.
 
 ## Authoritative references
 
