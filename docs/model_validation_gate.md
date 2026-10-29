@@ -42,6 +42,10 @@ reproducibility/
 
 Manifests should contain file hashes, versions, date boundaries, column names, counts and command lines; omit sensitive transaction content. Where files cannot be redistributed, explain access restrictions and provide reproducible generation steps.
 
+## Implemented V2 building block (not a trained detector)
+
+`src/country_target_encoding_v2.py` implements a past-only supervised country encoder. It treats equal event timestamps as simultaneous batches, never reads DEVELOPMENT/HOLDOUT labels in `transform`, and maps unseen countries to the TRAIN label prior. `tests/test_country_target_encoding_v2.py` contains four regression tests. The encoder is **not wired into a training pipeline**, and no V2 metrics have been produced. Run `python -m unittest tests.test_country_target_encoding_v2 -v` to execute the tests; CI results must be checked separately.
+
 ## Acceptance criteria for a validated V2
 
 1. Unit tests demonstrate country encodings cannot see future or test labels, including previously unseen countries.
