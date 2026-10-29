@@ -12,7 +12,8 @@ from src.rule_based import SCENARIO_WEIGHTS, ScenarioConfig, apply_scenarios
 
 SCENARIO_FEATURES = tuple(SCENARIO_WEIGHTS)
 NUMERIC_FEATURES = (
-    "Scenario_count", "Scenario_score", "Sender_prior_tx_count",
+    "Scenario_count", "Scenario_score", "Sender_24h_tx_count",
+    "Sender_24h_amount", "Sender_prior_tx_count",
     "Sender_seconds_since_previous", "Sender_prior_avg_amount",
     "Sender_window_tx_count", "Sender_window_amount",
     "Sender_window_unique_receivers", "Receiver_window_tx_count",
