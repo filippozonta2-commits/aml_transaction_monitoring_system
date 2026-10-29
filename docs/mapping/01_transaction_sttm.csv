@@ -1,0 +1,11 @@
+Source,Source field,Target layer,Target field,Transformation,Grain,Validation
+SAML-D_holdout.csv,row index,ML scores,holdout_row_id,Zero-based positional identifier,Transaction,Preserve row order
+SAML-D_holdout.csv,Date + Time,ML aggregation,ts,Parse timestamp with Date fallback,Transaction,Reject unparseable timestamps
+SAML-D_holdout.csv,Sender_account,ML aggregation,primary_account_id,Sender account as string,Sender account,Not null
+SAML-D_holdout.csv,Amount,ML aggregated alert,alert_amount,Sum triggering transaction amounts,Aggregated alert,Reconcile bridge
+ML holdout scores,ml_probability,ML aggregated alert,ml_probability_max,Maximum score across session,Aggregated alert,Probability range 0 to 1
+ML holdout scores,ML_ALERT_V1,ML aggregated alert,alert_id,Filter flagged transactions and sessionize,Account session,Retain all flagged evidence
+ML holdout scores,Is_laundering,Evaluation only,true_positive,Compare frozen predictions to labels,Transaction,Exclude from operational generation
+Rule scenario triggers,scenario_id,Rule aggregated alert,scenario_id,Preserve scenario in grouping,Account scenario session,Frozen scenario IDs
+ML aggregated alert,alert_id,ML case_alert,alert_id,Link alert to account case,Case alert,Foreign key check
+Rule aggregated alert,alert_id,Rule case_alert,alert_id,Link alert to account case,Case alert,Foreign key check
