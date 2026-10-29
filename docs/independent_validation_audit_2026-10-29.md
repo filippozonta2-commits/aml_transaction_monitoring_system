@@ -56,7 +56,7 @@ python -m src.audit_frozen_metrics
 python -m src.audit_frozen_metrics --joined-row-level /path/to/joined_holdout_evidence.csv
 
 # New offline unit tests (separate from original causal-feature tests)
-python -m unittest tests.test_audit_frozen_metrics -v
+python -m unittest discover -s tests -p 'test_audit_frozen_metrics.py' -v
 ```
 
 **Important:** The row-level mode deliberately fails when the expected HOLDOUT population, frozen counts or ML threshold do not reconcile. It cannot reconstruct the missing model or establish the absence of geographic leakage; these require the original upstream artifacts.
