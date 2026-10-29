@@ -11,7 +11,13 @@ def render(d):
         return
     n=len(ml); y=int(ml["Is_laundering"].sum()); ma=int(ml["ML_ALERT_V1"].sum())
     mh=int(ml.loc[ml.ML_ALERT_V1.eq(1),"Is_laundering"].sum())
+    if not y or not ma or not int(rp.alerts):
+        st.error("Cannot compute comparison metrics: empty positive class or alert population.")
+        return
     mr=mh/y; mp=mh/ma
+    if "aml_hits" in rp and int(rp.aml_hits) > y:
+        st.error("Rule and ML results appear inconsistent: Rule AML hits exceed ML HOLDOUT positives. Check dataset/version alignment.")
+        return
     c1,c2,c3,c4=st.columns(4)
     c1.metric("Rule V3 recall",f"{rp.recall:.2%}")
     c2.metric("ML V1 recall",f"{mr:.2%}",delta=f"{(mr-rp.recall)*100:+.2f} pp")
@@ -35,7 +41,7 @@ def render(d):
         st.subheader("Transaction workload overlap")
         x=ov[["group","transactions"]].copy()
         st.bar_chart(x.set_index("group")["transactions"])
-    st.info("ML V1 finds 868 AML positives missed by V3; V3 finds 123 missed by ML. The Rule ∪ ML union is post-HOLDOUT diagnostic only and is not a frozen production model.")
+    st.info("Overlap is a post-HOLDOUT diagnostic only, not a frozen combined detector. The charts above are calculated from the saved comparison artifact.")
     st.subheader("What the comparison means")
     st.markdown(f"""**ML V1** reduces alert volume from **{int(rp.alerts):,}** to **{ma:,}** while increasing captured AML from **{int(rp.aml_hits):,}** to **{mh:,}**.  
 **Rule-Based V3** remains the transparent policy/scenario benchmark and retains limited complementary coverage.  
