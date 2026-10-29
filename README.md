@@ -45,6 +45,22 @@ python3 -m src.build_case_network_data
 
 This uses `data/temporal/SAML-D_holdout.csv` and creates `results/dashboard/case_transaction_network_v3.csv`. The geography tab displays observed country-level transaction context, not verified physical locations or evidence of wrongdoing.
 
+## Frozen HOLDOUT detection comparison (locally verified)
+
+The **11-scenario Rule-Based V3** and **XGBoost Detection V1** were evaluated on the same chronological HOLDOUT population of **1,898,009 transactions**, including **2,136 labeled AML positives**. The figures below are *transaction-level detection* results, not aggregated alert or case counts.
+
+| Metric | Rule-Based V3 (11 scenarios) | XGBoost Detection V1 |
+|---|---:|---:|
+| Flagged transactions | 127,981 | 39,409 |
+| Transaction alert rate | 6.74% | 2.08% |
+| True-positive AML transactions | 1,225 | 1,798 |
+| Transaction precision | 0.96% | **4.56%** |
+| Transaction recall | 57.35% | **84.18%** |
+
+Relative to the frozen Rule-Based V3 benchmark, XGBoost identifies **573 additional AML-positive transactions**, improves recall by **26.83 percentage points**, and flags **69.21% fewer transactions**. These are aggregate detector-level comparisons; they do not establish how many of the same individual positives both systems detect. Detection precision remains low in absolute terms because of the strongly imbalanced simulated population.
+
+**Different grains:** the Rule-Based count of 127,981 and ML count of 39,409 are flagged *transactions*. The ML operational workflow subsequently produces 35,107 *aggregated alerts* and 30,114 *cases*. Comparing these counts without distinguishing their units would be misleading.
+
 ## Frozen ML Detection V1 → operational cases (locally verified)
 
 The frozen transaction-level XGBoost model is evaluated **before** operational aggregation. The downstream process does not retrain the model, change its decision threshold, or use AML ground-truth labels for case generation.
