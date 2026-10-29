@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import pandas as pd
-from src.train_hybrid_v2 import check_splits, choose_threshold, report
+from src.train_hybrid_v2 import check_splits, choose_threshold, report, reject_unaudited_columns
 
 
 class HybridExperimentTests(unittest.TestCase):
@@ -36,6 +36,17 @@ class HybridExperimentTests(unittest.TestCase):
         scores = np.array([0.9, 0.8, 0.7, 0.1, 0.0])
         cutoff = choose_threshold(np.array([1, 0, 1, 0, 0]), scores, 0.4)
         self.assertEqual(int((scores >= cutoff).sum()), 2)
+
+    def test_rejects_country_target_rate_even_if_not_selected(self):
+        clean = pd.DataFrame({"transaction_id": [1]})
+        tainted = clean.assign(country_aml_rate=[0.4])
+        with self.assertRaises(ValueError):
+            reject_unaudited_columns(clean, clean, tainted)
+
+    def test_rejects_post_decision_alert(self):
+        clean = pd.DataFrame({"transaction_id": [1]})
+        with self.assertRaises(ValueError):
+            reject_unaudited_columns(clean.assign(Scenario_alert=[1]), clean, clean)
 
     def test_metrics_are_derived_from_rows(self):
         r = report(np.array([1, 0, 1, 0]), np.array([0.9, 0.8, 0.1, 0.0]), 0.5)
