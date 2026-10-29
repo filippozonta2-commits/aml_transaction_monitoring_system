@@ -6,3 +6,5 @@ matplotlib
 streamlit
 networkx
 sortedcontainers
+plotly
+pycountry
