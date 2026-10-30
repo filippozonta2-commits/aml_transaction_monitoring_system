@@ -6,7 +6,7 @@ An end-to-end **educational AML analytics portfolio project** built on simulated
 
 The frozen HOLDOUT metrics below are **previously reported project results**, not newly reproduced by the independent repository review. An offline audit has reconciled the published confusion-matrix arithmetic, but the public checkout does **not** include the frozen XGBoost training/scoring implementation, model artifact, exact feature schema, DEVELOPMENT threshold-selection log or full HOLDOUT score/label file. Therefore the reported **84.18% recall is not yet independently verified**, and PR-AUC cannot be calculated from the published summary counts.
 
-The legacy exploratory `src/baseline_models.py` uses a random stratified split after feature engineering and **must not be treated as the frozen chronological model**. The generic `src/rule_based.py` currently lists **12** scenario keys, so it has **not** been established as the exact implementation of the reported frozen **11-scenario** Rule-Based V3. The country-level supervised target-rate features mentioned in earlier portfolio descriptions have no auditable source/provenance in this repository; their leakage status remains **unresolved**. See [Independent validation audit](docs/independent_validation_audit_2026-10-29.md) and run `python -m src.audit_frozen_metrics` for summary arithmetic reconciliation. Row-level audit requires real joined HOLDOUT evidence.
+The legacy exploratory `src/baseline_models.py` uses a random stratified split after feature engineering and **must not be treated as the frozen chronological model**. The generic `src/rule_based.py` currently lists **12** scenario keys, so it has **not** been established as the exact implementation of the reported frozen **11-scenario** Rule-Based V3. The country-level supervised target-rate features mentioned in earlier portfolio descriptions have no auditable source/provenance in this repository; their leakage status remains **unresolved**. See [Independent validation audit](docs/independent_validation_audit_2026-10-29.md) and [Model validation & reproducibility gates](docs/model_validation_gate.md) and run `python -m src.audit_frozen_metrics` for summary arithmetic reconciliation. Row-level audit requires real joined HOLDOUT evidence.
 
 ## Investigation console
 
@@ -49,7 +49,7 @@ python3 -m src.build_case_network_data
 
 This uses `data/temporal/SAML-D_holdout.csv` and creates `results/dashboard/case_transaction_network_v3.csv`. The geography tab displays observed country-level transaction context, not verified physical locations or evidence of wrongdoing.
 
-## Frozen HOLDOUT detection comparison (locally verified)
+## Reported frozen HOLDOUT detection comparison (not independently reproduced)
 
 The **11-scenario Rule-Based V3** and **XGBoost Detection V1** were evaluated on the same chronological HOLDOUT population of **1,898,009 transactions**, including **2,136 labeled AML positives**. The figures below are *transaction-level detection* results, not aggregated alert or case counts.
 
@@ -61,11 +61,11 @@ The **11-scenario Rule-Based V3** and **XGBoost Detection V1** were evaluated on
 | Transaction precision | 0.96% | **4.56%** |
 | Transaction recall | 57.35% | **84.18%** |
 
-Relative to the frozen Rule-Based V3 benchmark, XGBoost identifies **573 additional AML-positive transactions**, improves recall by **26.83 percentage points**, and flags **69.21% fewer transactions**. These are aggregate detector-level comparisons; they do not establish how many of the same individual positives both systems detect. Detection precision remains low in absolute terms because of the strongly imbalanced simulated population.
+According to the reported frozen benchmark, XGBoost identifies **573 additional AML-positive transactions**, improves recall by **26.83 percentage points**, and flags **69.21% fewer transactions**. These are aggregate detector-level comparisons; they do not establish how many of the same individual positives both systems detect. Detection precision remains low in absolute terms because of the strongly imbalanced simulated population.
 
 **Different grains:** the Rule-Based count of 127,981 and ML count of 39,409 are flagged *transactions*. The ML operational workflow subsequently produces 35,107 *aggregated alerts* and 30,114 *cases*. Comparing these counts without distinguishing their units would be misleading.
 
-## Frozen ML Detection V1 → operational cases (locally verified)
+## Reported frozen ML Detection V1 → operational cases (not independently reproduced)
 
 The frozen transaction-level XGBoost model is evaluated **before** operational aggregation. The downstream process does not retrain the model, change its decision threshold, or use AML ground-truth labels for case generation.
 
@@ -80,7 +80,7 @@ HOLDOUT transactions
   → ML Investigator Queue → Human Review
 ```
 
-These figures were observed from a local HOLDOUT run and checked in the Streamlit ML Case Management page. The workflow preserves links to all **39,409** flagged transactions. The operational case count is **23.59% lower** than the transaction-alert count; this is **not** a measured reduction in investigation hours, nor an improvement in detection recall.
+These figures were reported from a prior local HOLDOUT run and described as checked in the Streamlit ML Case Management page; this public repository review did not reproduce that run. The workflow preserves links to all **39,409** flagged transactions. The operational case count is **23.59% lower** than the transaction-alert count; this is **not** a measured reduction in investigation hours, nor an improvement in detection recall.
 
 | Stage | Count | Reduction from previous stage |
 |---|---:|---:|
